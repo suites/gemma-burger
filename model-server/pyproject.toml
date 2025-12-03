@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "gemma-burger-inference"
+version = "0.1.0"
+description = "Gemma-3 Inference Server for Mac Silicon"
+authors = ["Fred <woosiks.io@gmail.com>"]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.13"
+fastapi = "^0.109.0"
+uvicorn = {extras = ["standard"], version = "^0.25.0"}
+pydantic = "^2.6.0"
+mlx-lm = "^0.12.0"
+python-dotenv = "^1.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
