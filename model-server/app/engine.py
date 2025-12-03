@@ -1,6 +1,5 @@
-# model-server/app/engine.py
-
 from mlx_lm import generate, load
+from mlx_lm.sample_utils import make_sampler
 
 # 사용할 모델 ID (Hugging Face Hub 기준)
 # 4bit 양자화된 모델을 사용하여 메모리를 절약하고 속도를 높입니다.
@@ -23,20 +22,23 @@ class LLMEngine:
     def generate_text(
         self, prompt: str, max_tokens: int = 200, temperature: float = 0.7
     ) -> str:
-        """
-        주어진 프롬프트에 대해 텍스트를 생성합니다.
-        """
         if not self.model:
             raise RuntimeError("Model is not loaded!")
 
-        # MLX-LM의 generate 함수는 매우 최적화되어 있습니다.
+        messages = [{"role": "user", "content": prompt}]
+
+        # 예: "hello" -> "<start_of_turn>user\nhello<end_of_turn>\n<start_of_turn>model\n"
+        prompt_formatted = self.tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
+
         response = generate(
             self.model,
             self.tokenizer,
-            prompt=prompt,
+            prompt=prompt_formatted,
             max_tokens=max_tokens,
-            # temperature=temperature,
-            verbose=True,  # 터미널에 생성 과정을 출력 (디버깅용)
+            sampler=make_sampler(temp=temperature),
+            verbose=True,
         )
         return response
 
