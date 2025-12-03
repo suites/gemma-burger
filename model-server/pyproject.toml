@@ -16,3 +16,24 @@ python-dotenv = "^1.0.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+# 줄 길이 제한 (보통 88 또는 120 사용)
+line-length = 88
+# 제외할 디렉토리
+exclude = [".venv", "migrations"]
+
+[tool.ruff.lint]
+# 활성화할 규칙 (E: 에러, F: Pyflakes, I: Import 정렬, N: 네이밍)
+select = ["E", "F", "I", "N"]
+# 무시할 규칙
+ignore = []
+
+# 자동 수정(Auto-fix) 가능하게 설정
+fixable = ["ALL"]
+
+[tool.ruff.format]
+# 따옴표 스타일 (double이 파이썬 표준)
+quote-style = "double"
+# 들여쓰기 스타일
+indent-style = "space"
