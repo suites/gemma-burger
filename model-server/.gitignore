@@ -1,0 +1,75 @@
+# --- Python Basics ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- Virtual Environments (Poetry & venv) ---
+# 프로젝트 내부에 생성한 가상환경 폴더 (.venv)
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# --- Environment Variables (보안 필수) ---
+.env
+.env.local
+.env.*.local
+
+# --- IDE Settings (VS Code) ---
+.vscode/
+# 사용자별 설정은 무시하되, 팀 공용 설정(extensions.json 등)이 있다면 !로 예외 처리 가능
+!.vscode/extensions.json
+*.code-workspace
+
+# --- macOS System Files ---
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# =========================================
+# 🧠 AI & ML Specific (가장 중요)
+# =========================================
+
+# 1. Large Model Weights (절대 커밋 금지)
+# 실수로 3GB짜리 파일을 올리면 Git 히스토리가 꼬입니다.
+*.safetensors
+*.pth
+*.pt
+*.bin
+*.ckpt
+*.gguf
+*.h5
+models/
+!models/.keep
+
+# 2. MLflow & Logs
+mlruns/
+logs/
+*.log
+
+# 3. Data & Cache
+data/
+# 단, 데이터 구조를 보여주기 위한 샘플 파일은 허용하려면 아래 주석 해제
+# !data/sample.json
+.cache/
+__pypackages__/
