@@ -21,7 +21,7 @@ class LLMEngine:
         print("✅ Model loaded successfully!")
 
     def generate_text(
-        self, prompt: str, max_tokens: int = 200, temp: float = 0.7
+        self, prompt: str, max_tokens: int = 200, temperature: float = 0.7
     ) -> str:
         """
         주어진 프롬프트에 대해 텍스트를 생성합니다.
@@ -35,7 +35,7 @@ class LLMEngine:
             self.tokenizer,
             prompt=prompt,
             max_tokens=max_tokens,
-            temp=temp,
+            # temperature=temperature,
             verbose=True,  # 터미널에 생성 과정을 출력 (디버깅용)
         )
         return response

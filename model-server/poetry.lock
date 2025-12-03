@@ -565,6 +565,7 @@ description = "A framework for machine learning on Apple silicon."
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
+markers = "platform_system == \"Darwin\""
 files = [
     {file = "mlx-0.30.0-cp310-cp310-macosx_14_0_arm64.whl", hash = "sha256:f861392df1ee0ee216188060a8ff2cd2ed4d2b34d4366102863d01d02acf2a7e"},
     {file = "mlx-0.30.0-cp310-cp310-macosx_15_0_arm64.whl", hash = "sha256:7f4a0c37cc3eee051ee5efade3200cb49bc7e9973b38e53db2dddacdb3896a71"},
@@ -603,23 +604,30 @@ dev = ["nanobind (==2.4.0)", "numpy", "pre-commit", "setuptools (>=80)", "torch"
 
 [[package]]
 name = "mlx-lm"
-version = "0.12.1"
-description = "LLMs on Apple silicon with MLX and the Hugging Face Hub"
+version = "0.28.3"
+description = "LLMs with MLX and the Hugging Face Hub"
 optional = false
 python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "mlx_lm-0.12.1-py3-none-any.whl", hash = "sha256:04cb1582e1551b09b2ebcffd32477d625f1dcf9a87781b87e7af33bcf44f7165"},
-    {file = "mlx_lm-0.12.1.tar.gz", hash = "sha256:fc16270cef6ffaf7ebe53ab697156207a26c38706074a8548693f6b1f9ecd25a"},
+    {file = "mlx_lm-0.28.3-py3-none-any.whl", hash = "sha256:ec103e2c9a06bd2cbafd41aafc975e40262176f7360d4f53ec342cebb9e0e6ea"},
+    {file = "mlx_lm-0.28.3.tar.gz", hash = "sha256:75df2b925d343ebaf50b63008dede4fe98cd3b02b1b24b7da71ebeb198d674f0"},
 ]
 
 [package.dependencies]
 jinja2 = "*"
-mlx = ">=0.11"
+mlx = {version = ">=0.29.2", markers = "platform_system == \"Darwin\""}
 numpy = "*"
 protobuf = "*"
 pyyaml = "*"
 transformers = ">=4.39.3"
+
+[package.extras]
+cpu = ["mlx[cpu] (>=0.29.2)"]
+cuda = ["mlx[cuda] (>=0.29.2)"]
+evaluate = ["lm-eval", "tqdm"]
+test = ["datasets", "lm-eval"]
+train = ["datasets", "tqdm"]
 
 [[package]]
 name = "mlx-metal"
@@ -1669,4 +1677,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.13"
-content-hash = "f0402957d56e9cfbb60fd3f13bb64ff649b1c821e78b1bdcabb16670fc17f0ec"
+content-hash = "ce454b995b4b866f254f7f63ddf038ce1b1d5ce51600bbf0c3d584dadfb1ca40"

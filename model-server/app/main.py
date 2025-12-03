@@ -31,7 +31,7 @@ def generate(req: PromptRequest):
     """
     try:
         generated_text = engine.generate_text(
-            prompt=req.prompt, max_tokens=req.max_tokens, temp=req.temperature
+            prompt=req.prompt, max_tokens=req.max_tokens, temperature=req.temperature
         )
         return GenerationResponse(text=generated_text)
     except Exception as e:
