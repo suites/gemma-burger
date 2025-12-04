@@ -97,7 +97,7 @@ mlruns/
 # Data & Cache
 data/
 # 단, 데이터 구조를 보여주기 위한 샘플 파일은 허용하려면 아래 주석 해제
-# !data/sample.json
+!data/menu.json
 .cache/
 
 # =========================================

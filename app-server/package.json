@@ -20,10 +20,6 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "@huggingface/transformers": "^3.8.1",
-    "@langchain/community": "^1.0.6",
-    "@langchain/core": "^1.1.2",
-    "@langchain/pinecone": "^1.0.1",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
@@ -31,7 +27,6 @@
     "@nestjs/mapped-types": "*",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/serve-static": "^5.0.4",
-    "@pinecone-database/pinecone": "^6.1.3",
     "axios": "^1.13.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"

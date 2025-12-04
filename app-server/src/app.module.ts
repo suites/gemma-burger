@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { join } from 'path';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { ChatModule } from './chat/chat.module';
-import { RagModule } from './rag/rag.module';
 import { ConfigModule } from '@nestjs/config';
 
 @Module({
@@ -15,7 +14,6 @@ import { ConfigModule } from '@nestjs/config';
       rootPath: join(__dirname, '..', 'public'), // public 폴더를 루트로 지정
     }),
     ChatModule,
-    RagModule,
   ],
   controllers: [],
   providers: [],
