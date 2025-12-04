@@ -22,7 +22,6 @@ export class RagService implements OnModuleInit {
   }
 
   async onModuleInit() {
-    console.log('@@@@@@@@@@@', process.env.PINECONE_API_KEY);
     // 2. Pinecone 클라이언트 연결
     const pinecone = new PineconeClient({
       apiKey: process.env.PINECONE_API_KEY,
