@@ -4,32 +4,32 @@ import { lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class ChatService {
-  // Python AI 서버 주소 (로컬)
-  private readonly aiServerUrl = 'http://localhost:8000/generate';
+  // 🔴 수정 전: http://localhost:8000/generate
+  // 🟢 수정 후: Python 서버의 새로운 통합 엔드포인트
+  private readonly aiServerUrl = 'http://localhost:8000/chat';
 
   constructor(private readonly httpService: HttpService) {}
 
   async generateReply(userMessage: string): Promise<string> {
     try {
-      // 1. Python 서버로 페이로드 전송
-      // (나중에 여기서 RAG로 검색된 메뉴 정보를 프롬프트에 섞을 예정입니다)
+      // 1. Python 서버로 요청 전송
+      // 이제 복잡한 프롬프트 조립은 Python이 다 하므로,
+      // NestJS는 사용자의 메시지만 깔끔하게 넘기면 됩니다.
       const payload = {
-        prompt: userMessage,
-        max_tokens: 100,
-        temperature: 0.7,
+        message: userMessage, // ⬅️ Python의 ChatRequest 모델과 일치해야 함
       };
 
-      const response = await lastValueFrom(
-        this.httpService.post<{ text: string }>(this.aiServerUrl, payload),
+      const { data } = await lastValueFrom(
+        this.httpService.post(this.aiServerUrl, payload),
       );
 
-      // 2. 응답 반환 ({ text: "..." })
-      return response.data.text;
+      // 2. 응답 반환 ({ reply: "..." })
+      return data.reply;
     } catch (error) {
-      if (error instanceof Error) {
-        console.error('AI Server Error:', error.message);
-      }
-      throw new InternalServerErrorException('AI 직원이 잠시 휴식 중입니다.');
+      console.error('AI Server Error:', error.message);
+      throw new InternalServerErrorException(
+        'AI 직원이 잠시 휴식 중입니다. (AI Server Connection Error)',
+      );
     }
   }
 }
