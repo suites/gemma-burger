@@ -13,9 +13,9 @@ from app.rag import rag_engine
 
 def ingest():
     # 1. 메뉴 데이터 파일 경로 찾기
-    # model-server/scripts/../../data/menu.json
+    # model-server/scripts/../../resources/menu.json
     base_path = os.path.dirname(__file__)
-    data_path = os.path.join(base_path, "../../data/menu.json")
+    data_path = os.path.join(base_path, "../../resources/menu.json")
 
     print(f"📂 Loading data from: {os.path.abspath(data_path)}")
 
@@ -25,6 +25,11 @@ def ingest():
 
     with open(data_path, "r") as f:
         menu_data = json.load(f)
+
+    try:
+        rag_engine.vector_store.delete(delete_all=True)
+    except Exception as e:
+        print(f"⚠️ delete_all failed (Serverless index limitation?): {e}")
 
     # 2. Document 객체로 변환
     docs = []

@@ -1,0 +1,32 @@
+[
+  {
+    "name": "The Gemma Classic",
+    "price": 8.99,
+    "category": "Burger",
+    "description": "Our signature beef patty topped with fresh lettuce, tomato, pickles, and our secret AI sauce on a brioche bun."
+  },
+  {
+    "name": "Gemma Double Stack",
+    "price": 12.99,
+    "category": "Burger",
+    "description": "Double beef patties with melted cheddar cheese, grilled onions, and extra AI sauce. For those who need more compute power."
+  },
+  {
+    "name": "Silicon Valley Vege",
+    "price": 9.5,
+    "category": "Burger",
+    "description": "A plant-based patty made from mushrooms and black beans, served with avocado smash and vegan mayo."
+  },
+  {
+    "name": "Python Fries",
+    "price": 3.99,
+    "category": "Side",
+    "description": "Crispy curly fries seasoned with cajun spices. Long and twisted like a python script."
+  },
+  {
+    "name": "Neural Shake",
+    "price": 5.0,
+    "category": "Drink",
+    "description": "A thick strawberry vanilla milkshake that boosts your brain power."
+  }
+]
