@@ -1,14 +1,17 @@
 # model-server/app/main.py
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+
 from app.engine import engine
 from app.rag import rag_engine
 
 app = FastAPI(title="Gemma RAG Server")
 
+
 # 요청 데이터 모델 (NestJS가 보낼 데이터)
 class ChatRequest(BaseModel):
     message: str
+
 
 @app.post("/chat")
 def chat_endpoint(req: ChatRequest):
@@ -22,7 +25,7 @@ def chat_endpoint(req: ChatRequest):
         # 질문과 관련된 메뉴 3개를 가져옵니다.
         retrieved_docs = rag_engine.search(req.message, k=3)
         context_str = "\n".join(retrieved_docs)
-        
+
         # 검색된 내용이 없으면(빈 리스트) 처리
         if not context_str:
             context_str = "No specific menu information found."
@@ -46,9 +49,7 @@ Answer:
 
         # 3. [Generation] 답변 생성
         response = engine.generate_text(
-            prompt=system_prompt,
-            max_tokens=300,
-            temperature=0.7
+            prompt=system_prompt, max_tokens=300, temperature=0.7
         )
 
         return {"reply": response}
@@ -57,7 +58,9 @@ Answer:
         print(f"Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 if __name__ == "__main__":
     import uvicorn
+
     # 개발용 실행
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

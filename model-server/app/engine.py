@@ -1,9 +1,13 @@
+import os
+
+import mlx.core as mx
 from mlx_lm import generate, load
 from mlx_lm.sample_utils import make_sampler
 
-# 사용할 모델 ID (Hugging Face Hub 기준)
-# 4bit 양자화된 모델을 사용하여 메모리를 절약하고 속도를 높입니다.
-MODEL_ID = "mlx-community/gemma-3-4b-it-4bit"  # 혹은 "mlx-community/gemma-3-4b-it-4bit" 등을 사용 가능
+# GPU 강제 사용
+mx.set_default_device(mx.gpu)
+
+MODEL_ID = "mlx-community/gemma-2-2b-it-4bit"
 
 
 class LLMEngine:
@@ -12,9 +16,17 @@ class LLMEngine:
         self.tokenizer = None
         print(f"🚀 Loading model: {MODEL_ID}...")
 
-        # 모델과 토크나이저 로드 (최초 1회 실행 시 자동 다운로드됨)
-        # tokenizer_config={"trust_remote_code": True}가 필요할 수 있음
-        self.model, self.tokenizer = load(MODEL_ID)
+        # model-server/adapters 폴더를 가리킵니다.
+        adapter_path = "adapters"
+
+        # 어댑터 파일이 실제로 있는지 확인
+        if os.path.exists(adapter_path):
+            print(f"✨ Found adapter at '{adapter_path}'. Loading with LoRA...")
+            self.model, self.tokenizer = load(MODEL_ID, adapter_path=adapter_path)
+        else:
+            print("⚠️ Adapter not found. Loading base model only.")
+            self.model, self.tokenizer = load(MODEL_ID)
+
         print("✅ Model loaded successfully!")
 
     def generate_text(
@@ -24,8 +36,6 @@ class LLMEngine:
             raise RuntimeError("Model is not loaded!")
 
         messages = [{"role": "user", "content": prompt}]
-
-        # 예: "hello" -> "<start_of_turn>user\nhello<end_of_turn>\n<start_of_turn>model\n"
         prompt_formatted = self.tokenizer.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
         )
@@ -41,5 +51,4 @@ class LLMEngine:
         return response
 
 
-# 싱글톤 패턴처럼 전역 인스턴스로 관리 (FastAPI 시작 시 로드)
 engine = LLMEngine()
