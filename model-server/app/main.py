@@ -8,7 +8,6 @@ app = FastAPI(title="Gemma Agent Server")
 
 class ChatRequest(BaseModel):
     message: str
-    # 🟢 [추가] 세션 ID (없으면 서버에서 임시로 생성)
     session_id: str = "default_guest"
 
 @app.post("/chat")
@@ -24,7 +23,8 @@ def chat_endpoint(req: ChatRequest):
         # operator.add 덕분에, 여기서 넣은 메시지는 기존 기록 뒤에 추가됩니다.
         input_state = {
             "messages": [{"role": "user", "content": req.message}],
-            # (나머지 필드는 그래프가 알아서 채우거나 유지합니다)
+            "current_intent": "general",
+            "final_response": ""
         }
         
         # 3. 에이전트 실행 (config 전달 필수!)
@@ -36,13 +36,34 @@ def chat_endpoint(req: ChatRequest):
         history_count = len(result["messages"])
         print(f"🧠 Memory Depth: {history_count} messages")
 
-        # 4. 스트리밍 응답
-        return StreamingResponse(
-            engine.generate_text_stream(
+        async def response_generator():
+            full_response = ""
+            
+            # 엔진에서 스트림을 받아서 클라이언트에게 전달
+            stream = engine.generate_text_stream(
                 prompt=final_prompt,
                 max_tokens=500,
                 temperature=0.7
-            ),
+            )
+            
+            for token in stream:
+                full_response += token
+                yield token
+            
+            # 🟢 [핵심 수정] 스트리밍이 끝나면 완성된 답변을 메모리에 저장
+            print(f"💾 Saving AI Response to Memory: {len(full_response)} chars")
+            
+            # update_state를 사용하여 assistant 메시지 추가
+            # (이 코드는 스트리밍이 끝난 직후 서버 내부에서 실행됨)
+            agent_app.update_state(
+                config,
+                {"messages": [{"role": "assistant", "content": full_response}]}
+            )
+
+
+        # 4. 스트리밍 응답
+        return StreamingResponse(
+            response_generator(),
             media_type="text/plain"
         )
 

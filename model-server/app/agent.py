@@ -62,9 +62,8 @@ Response (ONLY output the category name: HISTORY, ORDER, or GENERAL):"""
 def handle_history(state: AgentState):
     """대화 기록(Memory)을 보고 주문 내역을 요약"""
     
-    # 1. 대화 기록 포맷팅
+    # 1. 대화 기록 포맷팅 (기존과 동일)
     history_lines = []
-    # 현재 질문(마지막 메시지)을 제외한 이전 대화가 있는지 확인하기 위해 분리
     past_messages = state["messages"][:-1] 
     
     for msg in state["messages"]:
@@ -78,57 +77,65 @@ def handle_history(state: AgentState):
     conversation_text = "\n".join(history_lines)
     print(f"📜 [History Context] (Length: {len(state['messages'])})\n{conversation_text}\n" + "-"*20)
 
-    # 🛡️ [방어 로직] 핵심: 이전 대화가 없으면 AI 호출 없이 바로 리턴
-    # 메시지가 1개(방금 질문한 것) 뿐이라면 주문 내역이 있을 수 없음.
+    # 🛡️ [방어 로직] 아예 대화가 없을 때
     if len(past_messages) == 0:
-        print("⚡️ [Logic] No history found. Skipping LLM generation.")
-        return {"final_response": "You haven't ordered anything yet! 📝 Feel free to check our menu."}
+        return {"final_response": "You haven't ordered anything yet! 📝 How about trying our famous Gemma Classic? 🍔"}
 
-    # 2. 프롬프트 작성 (기존과 동일하지만, 규칙 강화)
+    # 2. 🟢 [수정] 프롬프트 개선: 수량과 가격 정보 명시
     prompt = f"""
-Role: You are a strict cashier.
-Task: List ordered food items based ONLY on the conversation below.
+Role: You are Gemma, a super friendly staff at Gemma Burger.
+Task: Summarize the customer's order based ONLY on the history below.
 
 [Conversation]
 {conversation_text}
 
 [Rules]
-1. If NO food items were confirmed by the CLERK, say "No orders found".
-2. Do NOT invent or hallucinate items.
-3. Ignore the user's last question asking for the bill.
-4. Output format: "You ordered: [Item] ($Price)... Total: $X"
+1. If the customer hasn't confirmed any food orders yet, politely say: "It looks like you haven't finalized any orders yet! 🧐 Would you like to see the menu?"
+2. Do NOT invent items. Only list what the CLERK explicitly confirmed.
+3. Count the QUANTITY of each item carefully.
+4. Use emojis (🧾, 🍔, 🥤) to make it look like a real receipt.
+5. Output format example:
+   "Here is your order so far! 🧾
+   - [Quantity]x [Item Name] ($[Unit Price])
+   - [Quantity]x [Item Name] ($[Unit Price])
+   ----------------
+   Total: $[Total Price]
+   Is this correct? 😊"
 
 Answer:"""
     
     return {"final_response": prompt}
 
 def handle_general(state: AgentState):
+    """일반 대화 및 문의 -> 전체 지식 검색"""
     query = state["messages"][-1]["content"]
     
-    print(f"🔍 [Agent] Searching RAG for: '{query}'")
-    docs = rag_engine.search(query)
+    # 일반 문의는 메뉴일 수도 있고 매장 정보일 수도 있음 -> 필터 없이 전체 검색
+    # (나중에 Router가 더 똑똑해지면 {"type": "info"}로 좁힐 수도 있음)
+    docs = rag_engine.search(query) 
     context = "\n".join(docs)
-    
-    # 🟢 [팁] 이전 대화 내용을 프롬프트에 포함시키고 싶다면 state["messages"]를 활용할 수 있습니다.
-    # 여기서는 간단히 RAG만 수행합니다.
     
     prompt = f"""
 You are Gemma, a friendly staff at Gemma Burger.
-Use the menu info to answer.
+Answer the customer's question based ONLY on the info below.
 
-[Menu]
+[Info]
 {context}
 
-User: {query}
+Customer: {query}
 Answer:"""
     return {"final_response": prompt}
 
 def handle_order(state: AgentState):
-    """주문 의도 감지 -> RAG 검색 -> 메뉴 검증 및 접수"""
+    """주문 의도 -> 메뉴판(Menu)만 검색하여 검증"""
     query = state["messages"][-1]["content"]
     
-    print(f"🔍 [Agent] Verifying Order against Menu: '{query}'")
-    docs = rag_engine.search(query)
+    # 🟢 [핵심 수정] 주문 시에는 'type: menu' 데이터만 검색하도록 필터링!
+    # 이렇게 하면 엉뚱한 매장 정보(주소, 와이파이 등)가 검색 결과에 섞이는 것을 방지합니다.
+    print(f"🔍 [Agent] Verifying Order against Menu DB: '{query}'")
+    
+    # Pinecone 메타데이터 필터 문법 적용
+    docs = rag_engine.search(query, filter={"type": "menu"})
     context = "\n".join(docs)
     
     prompt = f"""
@@ -136,9 +143,9 @@ You are Gemma, a smart waiter.
 The customer wants to order: "{query}".
 
 Check the [Menu Info] below.
-1. If the user asks for a generic name (e.g., "cheese burger"), match it to the closest item on the menu (e.g., "The Gemma Classic").
-2. Confirm the order using the OFFICIAL menu item name and price.
-3. If the item is not on the menu at all, apologize and suggest something else.
+1. Match the user's request to the OFFICIAL menu item name.
+2. If found, accept the order and confirm the price.
+3. If NOT found in the menu list, apologize and say we don't serve that.
 4. Use emojis! 🍔
 
 [Menu Info]
@@ -146,7 +153,6 @@ Check the [Menu Info] below.
 
 Customer: {query}
 Answer:"""
-    
     return {"final_response": prompt}
 
 # 3. 그래프 구성
