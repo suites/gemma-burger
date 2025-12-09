@@ -1,0 +1,27 @@
+# 1. 모델 설정
+model: "mlx-community/gemma-3-4b-it-4bit"
+
+# 2. 데이터 경로 (train.jsonl, valid.jsonl이 있는 폴더)
+# model-server 기준으로 상대 경로 지정
+data: "../resources/fine_tuning"
+
+# 3. 학습 파라미터
+seed: 42
+num_layers: 16 # LoRA를 적용할 레이어 수 (높을수록 학습 오래 걸림)
+batch_size: 4 # 한 번에 학습할 데이터 수 (M1/M2라면 4, M3 Max라면 8~16)
+iters: 600 # 총 반복 횟수 (데이터 50개 * 12 epoch ≈ 600)
+val_batches: 25 # 검증 빈도
+learning_rate: 1e-4 # 학습률 (너무 크면 발산, 너무 작으면 학습 안됨)
+steps_per_report: 10 # 로그 출력 빈도
+steps_per_eval: 200 # 검증 실행 빈도
+
+# 4. LoRA 어댑터 설정 (플러그인 크기)
+lora_parameters:
+  rank: 8 # 어댑터의 복잡도 (클수록 똑똑하지만 무거움)
+  alpha: 16 # 어댑터의 영향력
+  dropout: 0.05 # 과적합 방지
+  scale: 10.0 # 가중치 스케일
+
+# 5. 저장 설정
+save_every: 100 # 100 step마다 저장
+adapter_path: "adapters" # 결과물이 저장될 폴더명

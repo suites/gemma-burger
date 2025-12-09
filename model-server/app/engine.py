@@ -3,9 +3,7 @@ from mlx_lm.sample_utils import make_sampler
 
 # 사용할 모델 ID (Hugging Face Hub 기준)
 # 4bit 양자화된 모델을 사용하여 메모리를 절약하고 속도를 높입니다.
-MODEL_ID = (
-    "google/gemma-3-4b-it"  # 혹은 "mlx-community/gemma-3-4b-it-4bit" 등을 사용 가능
-)
+MODEL_ID = "mlx-community/gemma-3-4b-it-4bit"  # 혹은 "mlx-community/gemma-3-4b-it-4bit" 등을 사용 가능
 
 
 class LLMEngine:
