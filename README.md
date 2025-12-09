@@ -194,3 +194,32 @@ npm run start:dev
 - [x] **MLflow** Docker 환경 구축 (Local Artifacts).
 - [x] 학습 과정(Loss) 실시간 시각화 및 실험 기록.
 - [x] **Hugging Face Hub**에 학습된 모델 업로드 및 배포.
+
+### Phase 5: Advanced AI Service & UX (심화 기능 및 UX 개선)
+
+- [ ] **Streaming Response (SSE)**
+
+  - Python: `generate_step` 함수와 Generator를 활용하여 토큰 단위 생성 로직 구현.
+  - NestJS: Python 서버의 스트림을 받아 클라이언트로 실시간 중계하는 SSE(Server-Sent Events) 로직 구현.
+  - Frontend: `EventSource` API를 사용하여 답변이 실시간으로 작성되는 타이핑 효과 구현.
+
+- [ ] **Structured RAG (Metadata Filtering)**
+
+  - Data: 영업 시간, 매장 위치, 연락처 등 매장 운영 정보를 담은 `store_info.json` 데이터 추가.
+  - Pinecone: 데이터 주입 시 `type` 메타데이터(예: menu, info)를 구분하여 저장.
+  - Logic: 사용자 질문의 의도를 파악하여 적절한 메타데이터 필터를 적용하는 검색 로직 구현.
+
+- [ ] **Multi-Agent System (Router & Persona)**
+
+  - Persona: 불만 접수 및 규정 안내를 담당하는 매니저 에이전트(Gordon) 추가.
+  - Router Chain: 사용자 입력의 성격(주문/잡담 vs 불만/심각)을 분류하여 적절한 에이전트에게 요청을 분배.
+
+- [ ] **Agentic Tool Use (Budget Planner)**
+
+  - **Goal:** "50달러 내로 추천해줘" 같은 요청 시, 예산에 맞춰 메뉴 조합(장바구니)을 구성.
+  - Logic (Python): LLM이 직접 계산하지 않고, `recommend_menu_by_budget(limit)` 파이썬 함수(Tool)를 호출하도록 구현.
+  - Algorithm: 냅색(Knapsack) 알고리즘이나 랜덤 조합 로직을 활용하여 예산을 꽉 채우는 세트 메뉴 구성 기능 개발.
+
+- [ ] **Automated Evaluation (LLM-as-a-Judge)**
+  - Pipeline: 대화 로그를 수집하고 외부 고성능 모델을 활용하여 답변 품질(정확성, 친절도)을 자동 채점하는 스크립트 작성.
+  - MLflow: 채점 결과를 MLflow Metric으로 전송하여 모델 성능 변화를 정량적으로 모니터링.
