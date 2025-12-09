@@ -1,20 +1,22 @@
-# 🍔 Gemma Burger: AI-Powered Restaurant Concierge
+# Gemma Burger: AI-Powered Restaurant Concierge
 
-> **Mac Silicon 기반의 로컬 LLM 추론과 RAG, Fine-tuning을 활용한 영어 회화 주문 서비스**
+> **Mac Silicon 기반의 로컬 LLM 추론과 RAG, Fine-tuning, MLOps를 결합한 하이브리드 AI 서비스**
 
 ## 1. 프로젝트 개요 (Overview)
 
-**Gemma Burger**는 가상의 햄버거 가게에서 외국인 손님(사용자)의 영어 주문을 응대하는 AI 직원 챗봇 서비스입니다.  
-클라우드 API 비용 없이 **100% 로컬 환경(On-Device)**에서 동작하며, 백엔드 엔지니어링과 AI 엔지니어링의 모범적인 결합(Hybrid Architecture)을 목표로 합니다.
+**Gemma Burger**는 가상의 햄버거 가게에서 외국인 손님(사용자)의 영어 주문을 응대하는 AI 직원 챗봇 서비스입니다.
+상용 API 비용을 최소화하고, **백엔드 엔지니어링(NestJS)**과 **AI 엔지니어링(Python/MLX)**의 장점을 결합한 **Hybrid Architecture**를 지향합니다.
 
-### 🎯 핵심 목표
+### 핵심 목표
 
-- **Zero Cost:** 상용 API(OpenAI, Bedrock 등)를 사용하지 않고 로컬 모델 구동.
-- **Mac Optimization:** Apple MLX 라이브러리를 활용한 GPU 가속 추론.
-- **Hybrid Engineering:**
-  - **NestJS:** 비즈니스 로직, RAG(Vector Search), 데이터 관리.
-  - **Python:** 순수 AI 추론(Inference) 엔진 역할.
-- **Full AI Lifecycle:** 데이터 구축 → 모델 서빙 → RAG 구현 → Fine-tuning(LoRA) → MLOps 경험.
+- **Local Inference:** Mac Apple Silicon(Metal) 가속을 활용한 로컬 LLM 구동 (비용 0원).
+- **Hybrid Architecture:**
+  - **NestJS:** 안정적인 API Gateway, 정적 파일 서빙, 트래픽 관리.
+  - **Python:** RAG(지식 검색), 임베딩, LLM 추론, Fine-tuning 전담.
+- **Advanced AI Engineering:**
+  - **RAG:** Pinecone을 활용한 메뉴 지식 주입.
+  - **Fine-tuning (LoRA):** "친절한 직원" 페르소나 주입.
+  - **MLOps:** MLflow를 이용한 실험 관리 및 모델 레지스트리 구축.
 
 ---
 
@@ -24,49 +26,54 @@
 
 ```mermaid
 graph TD
-    Client[Web Client / HTML+JS] -->|HTTP REST| NestJS[App Server: NestJS]
-    NestJS -->|Vector Search| DB[(PostgreSQL + pgvector)]
-    NestJS -->|HTTP Request: Prompt Injection| Python[AI Server: FastAPI + MLX]
+    Client[Web Client / HTML+JS] -->|HTTP POST| NestJS[App Server: NestJS]
+    NestJS -->|Proxy Request| Python[AI Server: FastAPI]
 
-    subgraph Data Flow
-        DB -->|Context Data| NestJS
-        Python -->|Generated Text| NestJS
+    subgraph AI Brain
+        Python -->|Retrieval| Pinecone[(Vector DB: Pinecone)]
+        Pinecone -->|Context| Python
+        Python -->|Inference| MLX[Local LLM: MLX Engine]
+    end
+
+    subgraph MLOps
+        MLX -->|Logging| MLflow[MLflow Server]
+        MLX -->|Upload| HF[Hugging Face Hub]
     end
 ```
 
-### 🏗️ 구성 요소별 역할
+### 구성 요소별 역할
 
-1.  **Application Server (Node.js/NestJS)**
+1.  **Application Server (NestJS)**
 
-    - 사용자 트래픽 처리 및 API Gateway 역할.
-    - **RAG (Retrieval-Augmented Generation):** 사용자 질문을 벡터화하여 DB에서 관련 메뉴 정보를 검색.
-    - **Prompt Engineering:** 검색된 정보(Context)와 페르소나를 조합하여 프롬프트 생성.
-    - 채팅 로그 저장 및 관리.
+    - **API Gateway:** 클라이언트 요청을 받아 Python 서버로 중계.
+    - **Frontend Hosting:** 채팅 UI (HTML/JS) 정적 서빙.
+    - **Responsibility:** 인증, 로깅, 트래픽 제어 등 백엔드 본연의 업무 집중.
 
-2.  **Inference Server (Python/FastAPI)**
+2.  **AI Server (Python/FastAPI)**
 
-    - **Stateless AI Engine:** 비즈니스 로직 없이 오직 `Input Text -> LLM -> Output Text` 수행.
-    - **MLX-LM:** Apple Silicon에 최적화된 고속 추론 서빙.
+    - **RAG Engine:** LangChain + Pinecone을 사용하여 사용자 질문과 관련된 메뉴 정보 검색.
+    - **Inference Engine:** Apple MLX 프레임워크를 사용하여 LLM(Gemma) 추론.
+    - **Prompt Engineering:** 검색된 지식(Context)과 페르소나를 결합하여 프롬프트 조립.
 
-3.  **Database (PostgreSQL)**
-    - **pgvector:** 메뉴 설명 및 지식 데이터의 벡터 임베딩 저장.
-    - 일반 관계형 데이터(주문 기록, 채팅 로그) 저장.
+3.  **Infra & MLOps**
+    - **Pinecone:** 메뉴 데이터의 벡터 임베딩 저장소 (Serverless).
+    - **MLflow (Docker):** 학습 파라미터 및 Loss 기록, 모델 아티팩트 관리.
+    - **Hugging Face Hub:** 학습된 LoRA 어댑터 배포 및 공유.
 
 ---
 
 ## 3. 기술 스택 (Tech Stack)
 
-| 구분             | 기술 (Technology)             | 설명                                   |
-| :--------------- | :---------------------------- | :------------------------------------- |
-| **OS**           | macOS (Apple Silicon)         | Metal 가속 활용 환경                   |
-| **Frontend**     | HTML5, JavaScript             | NestJS Static Serving (Simple Chat UI) |
-| **Backend**      | **NestJS**, TypeORM           | Main Application Framework             |
-| **AI Server**    | **FastAPI**, Uvicorn          | Model Serving API                      |
-| **Model Engine** | **MLX-LM**, Hugging Face      | Apple Silicon 최적화 추론 및 학습      |
-| **LLM**          | **google/gemma-3-4b-it-4bit** | 4-bit Quantized (Memory Efficient)     |
-| **Database**     | **PostgreSQL** + **pgvector** | RDB & Vector DB Hybrid                 |
-| **DevOps**       | Docker, Docker Compose        | Container Orchestration                |
-| **MLOps**        | MLflow                        | Experiment Tracking (Fine-tuning Loss) |
+| 구분             | 기술 (Technology)                    | 설명                               |
+| :--------------- | :----------------------------------- | :--------------------------------- |
+| **OS**           | macOS (Apple Silicon)                | Metal 가속 활용 (M1/M2/M3)         |
+| **Backend**      | **NestJS** (Node.js v20+)            | Main Application & Gateway         |
+| **AI Server**    | **FastAPI**, Uvicorn                 | AI Logic & Serving                 |
+| **Model Engine** | **MLX-LM**, PyTorch                  | Apple Silicon 최적화 추론 및 학습  |
+| **LLM**          | **mlx-community/gemma-3-4b-it-4bit** | 4-bit Quantized (Memory Efficient) |
+| **RAG**          | **LangChain**, Sentence-Transformers | 오케스트레이션 및 임베딩           |
+| **Vector DB**    | **Pinecone**                         | Vector Search (SaaS)               |
+| **MLOps**        | **MLflow** (Docker), Hugging Face    | 실험 추적 및 모델 버전 관리        |
 
 ---
 
@@ -74,25 +81,28 @@ graph TD
 
 ```bash
 gemma-burger/
-├── app-server/          # NestJS Application
+├── app-server/          # NestJS Application (Gateway)
 │   ├── src/
-│   │   ├── chat/        # 채팅 비즈니스 로직
-│   │   ├── rag/         # Vector Search 로직
-│   │   └── database/    # Entity & Repository
-│   ├── public/          # Frontend Static Files (HTML)
+│   │   ├── chat/        # 채팅 중계 로직
+│   │   └── main.ts
+│   ├── public/          # Web UI (index.html)
 │   └── package.json
-├── model-server/        # Python AI Application
+├── model-server/        # Python AI Application (Brain)
 │   ├── app/
-│   │   ├── main.py      # FastAPI Entrypoint
-│   │   └── engine.py    # MLX Model Loader
-│   ├── models/          # 로컬 모델 저장소 (Gemma-3 weights)
-│   ├── pyproject.toml   # Poetry Dependency
-│   └── Dockerfile
-├── data/                # 데이터셋 및 초기화 스크립트
+│   │   ├── main.py      # FastAPI Entrypoint (RAG + Inference)
+│   │   ├── engine.py    # MLX Model Loader & Generator
+│   │   └── rag.py       # Pinecone Search Logic
+│   ├── scripts/         # MLOps & Utility Scripts
+│   │   ├── ingest.py    # 데이터 주입
+│   │   ├── train_with_mlflow.py # LoRA 학습 및 MLflow 기록
+│   │   └── upload_to_hub.py     # Hugging Face 업로드
+│   ├── adapters/        # 학습된 LoRA 결과물
+│   └── pyproject.toml   # Poetry Dependency
+├── resources/           # 정적 데이터
 │   ├── menu.json        # 메뉴 원본 데이터
-│   ├── vector_init.sql  # DB 초기화 SQL
-│   └── fine_tuning/     # 학습용 데이터셋
-├── docker-compose.yml   # 전체 서비스 실행 설정
+│   └── fine_tuning/     # 학습용 데이터셋 (train.jsonl)
+├── data/                # 로컬 데이터 (Docker Volumes, Logs)
+├── docker-compose.yml   # MLOps 인프라 (MLflow)
 └── README.md            # 프로젝트 문서
 ```
 
@@ -102,37 +112,46 @@ gemma-burger/
 
 ### 사전 요구사항 (Prerequisites)
 
-- macOS (M1 이상 권장)
+- macOS (Apple Silicon 권장)
 - Docker & Docker Compose
-- Node.js (v22+) & npm
+- Node.js (v20 LTS 권장)
 - Python (v3.10+) & Poetry
+- Pinecone API Key / Hugging Face Token
 
-### 🚀 설치 및 실행 (Setup)
+### 설치 및 실행 (Setup)
 
-#### 1. 프로젝트 클론
+#### 1. 환경 변수 설정
 
-```bash
-git clone [https://github.com/suites/gemma-burger.git](https://github.com/suites/gemma-burger.git)
-cd gemma-burger
+`model-server/.env` 파일을 생성합니다.
+
+```env
+PINECONE_API_KEY=your_key
+PINECONE_INDEX_NAME=gemma-burger
 ```
 
-#### 2. 모델 서버 설정 (Python)
+#### 2. MLOps 인프라 실행 (Docker)
+
+MLflow 서버를 실행합니다.
+
+```bash
+docker-compose up -d
+# 접속 확인: http://localhost:5001
+```
+
+#### 3. 모델 서버 설정 & 데이터 주입 (Python)
 
 ```bash
 cd model-server
 poetry install
 
-brew install huggingface-cli
-```
+# 1. 메뉴 데이터 Pinecone에 주입 (최초 1회)
+poetry run python scripts/ingest.py
 
-env 설정
-
-```bash
-# 모델 다운로드 (HuggingFace CLI 활용) 또는 실행 시 자동 다운로드
+# 2. AI 서버 실행
 poetry run uvicorn app.main:app --reload
 ```
 
-#### 3. 앱 서버 설정 (NestJS)
+#### 4. 앱 서버 실행 (NestJS)
 
 ```bash
 cd ../app-server
@@ -140,36 +159,38 @@ npm install
 npm run start:dev
 ```
 
-#### 4. 전체 실행 (Docker Compose)
+#### 5. 접속
 
-```bash
-# 루트 디렉토리에서
-docker-compose up --build
-```
+웹 브라우저에서 **`http://localhost:3000`** 접속 후 채팅 시작!
 
 ---
 
-## 6. 개발 로드맵 (Roadmap)
+## 6. 개발 로드맵 (Completed Roadmap)
+
+우리는 이 프로젝트를 통해 **AI 엔지니어링의 A to Z**를 경험했습니다.
 
 ### Phase 1: Baseline (기본 구축)
 
-- [x] Python FastAPI 서버 구축 및 Gemma-3-4b-it-4bit 로드.
-- [x] NestJS 서버 구축 및 Python 서버와 HTTP 통신 연결.
-- [x] 기본 채팅 UI 구현 및 "Hello" 테스트.
+- [x] Python FastAPI 서버 구축 및 Gemma 모델(4bit) 로드.
+- [x] NestJS 서버 구축 및 기본 웹 UI 연동.
+- [x] 서버 간 HTTP 통신 연결.
 
 ### Phase 2: RAG (지식 주입)
 
-- [x] `menu.json` 데이터 정의.
-- [x] PostgreSQL `pgvector` 설정 및 메뉴 데이터 임베딩/저장.
-- [x] NestJS에서 사용자 질문에 따른 메뉴 검색 로직 구현.
+- [x] `resources/menu.json` 데이터 정의.
+- [x] **Pinecone** 벡터 DB 도입 (pgvector에서 변경).
+- [x] Python 기반 RAG 엔진(`rag.py`) 구현 및 데이터 주입 스크립트 작성.
+- [x] "없는 메뉴를 물어보면 정중히 거절하는" 로직 구현.
 
 ### Phase 3: Fine-tuning (페르소나 입히기)
 
-- [x] LLM을 활용한 합성 데이터(Synthetic Data) 50쌍 생성.
-- [x] MLX LoRA를 활용하여 "친절한 직원" 말투 학습.
-- [x] 학습된 Adapter를 Python 서버에 적용.
+- [x] Gemini를 활용한 고품질 합성 데이터(Synthetic Data) 생성.
+- [x] **Apple MLX LoRA**를 활용한 로컬 파인튜닝 수행.
+- [x] 학습된 Adapter(`adapters.safetensors`)를 런타임에 동적 로딩.
+- [x] "Gemma Burger 직원 말투" 구현 성공.
 
 ### Phase 4: MLOps (관리 및 평가)
 
-- [x] MLflow 연동하여 학습 Loss 시각화.
-- [x] 파인튜닝 전/후 응답 퀄리티 비교 평가.
+- [x] **MLflow** Docker 환경 구축 (Local Artifacts).
+- [x] 학습 과정(Loss) 실시간 시각화 및 실험 기록.
+- [x] **Hugging Face Hub**에 학습된 모델 업로드 및 배포.
