@@ -211,7 +211,7 @@ npm run start:dev
 
   - MemorySaver로 대화 기억 구현, "주문 내역 알려줘" 기능 추가.
 
-- [ ] **Structured RAG (Metadata Filtering)**
+- [x] **Structured RAG (Metadata Filtering)**
 
   - Data: 영업 시간, 매장 위치, 연락처 등 매장 운영 정보를 담은 `store_info.json` 데이터 추가.
   - Pinecone: 데이터 주입 시 `type` 메타데이터(예: menu, info)를 구분하여 저장.
