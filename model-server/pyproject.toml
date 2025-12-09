@@ -19,6 +19,8 @@ langchain-pinecone = "^0.2.13"
 sentence-transformers = "^5.1.2"
 boto3 = "^1.42.5"
 mlflow = "^3.7.0"
+langgraph = "^1.0.4"
+langchain-core = "^1.1.2"
 
 [build-system]
 requires = ["poetry-core"]
