@@ -1,0 +1,27 @@
+[
+  {
+    "category": "Operation",
+    "content": "We are open Monday to Sunday, from 10:00 AM to 10:00 PM.",
+    "type": "info"
+  },
+  {
+    "category": "Location",
+    "content": "Gemma Burger is located at 123 AI Boulevard, Silicon Valley, CA 94000.",
+    "type": "info"
+  },
+  {
+    "category": "Contact",
+    "content": "You can contact us at contact@gemmaburger.ai or call +1-800-GEMMA-AI.",
+    "type": "info"
+  },
+  {
+    "category": "Policy",
+    "content": "We offer full refunds if the food is cold. Please keep your receipt.",
+    "type": "info"
+  },
+  {
+    "category": "Wifi",
+    "content": "Free Wifi is available. SSID: Gemma_Guest, Password: burger_love",
+    "type": "info"
+  }
+]
