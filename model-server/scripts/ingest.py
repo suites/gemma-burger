@@ -1,58 +1,63 @@
-# model-server/scripts/ingest.py
-import json
-import os
 import sys
-
+import os
+import json
 from langchain_core.documents import Document
 
-# [Setup] 상위 디렉토리(app)를 import 할 수 있게 경로 추가
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-
+# 상위 디렉토리(app) 모듈 import 설정
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from app.rag import rag_engine
 
+def load_json(filepath):
+    if not os.path.exists(filepath):
+        print(f"⚠️ Warning: File not found at {filepath}")
+        return []
+    with open(filepath, 'r') as f:
+        return json.load(f)
 
 def ingest():
-    # 1. 메뉴 데이터 파일 경로 찾기
-    # model-server/scripts/../../resources/menu.json
     base_path = os.path.dirname(__file__)
-    data_path = os.path.join(base_path, "../../resources/menu.json")
-
-    print(f"📂 Loading data from: {os.path.abspath(data_path)}")
-
-    if not os.path.exists(data_path):
-        print("❌ Error: menu.json not found!")
-        return
-
-    with open(data_path, "r") as f:
-        menu_data = json.load(f)
-
-    try:
-        rag_engine.vector_store.delete(delete_all=True)
-    except Exception as e:
-        print(f"⚠️ delete_all failed (Serverless index limitation?): {e}")
-
-    # 2. Document 객체로 변환
+    menu_path = os.path.join(base_path, '../../resources/menu.json')
+    info_path = os.path.join(base_path, '../../resources/store_info.json')
+    
     docs = []
+
+    # 1. 메뉴 데이터 처리 (Type: menu)
+    print(f"🍔 Loading Menu Data from: {menu_path}")
+    menu_data = load_json(menu_path)
+    
     for item in menu_data:
-        # 검색이 잘 되도록 텍스트를 풍부하게 구성
         content = f"Menu Item: {item['name']}\nDescription: {item['description']}\nPrice: ${item['price']}\nCategory: {item['category']}"
+        
+        # 메타데이터에 type='menu' 강제 주입
+        metadata = item.copy()
+        metadata["type"] = "menu"
+        
+        docs.append(Document(page_content=content, metadata=metadata))
 
-        docs.append(
-            Document(
-                page_content=content,
-                metadata={
-                    "name": item["name"],
-                    "category": item["category"],
-                    "price": item["price"],
-                },
-            )
-        )
+    # 2. 매장 정보 데이터 처리 (Type: info)
+    print(f"ℹ️ Loading Store Info from: {info_path}")
+    info_data = load_json(info_path)
+    
+    for item in info_data:
+        content = f"[{item['category']}] {item['content']}"
+        
+        # store_info.json에는 이미 type='info'가 들어있지만 확실하게 처리
+        metadata = item.copy()
+        if "type" not in metadata:
+            metadata["type"] = "info"
+            
+        docs.append(Document(page_content=content, metadata=metadata))
 
-    # 3. Pinecone에 업로드
-    print(f"🚀 Uploading {len(docs)} documents to Pinecone...")
-    rag_engine.vector_store.add_documents(docs)
-    print("✅ Ingestion Complete!")
-
+    # 3. Pinecone 업로드
+    if docs:
+        print(f"🚀 Uploading {len(docs)} documents to Pinecone...")
+        # (선택사항) 기존 데이터 삭제 후 재생성하려면:
+        # rag_engine.vector_store.delete(delete_all=True)
+        
+        rag_engine.vector_store.add_documents(docs)
+        print("✅ Ingestion Complete!")
+    else:
+        print("❌ No documents to upload.")
 
 if __name__ == "__main__":
     ingest()
