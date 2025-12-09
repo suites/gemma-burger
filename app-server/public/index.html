@@ -140,42 +140,49 @@
         const inputField = document.getElementById('userInput');
         const sendBtn = document.getElementById('sendBtn');
         const chatWindow = document.getElementById('chatWindow');
-        const loading = document.getElementById('loading');
 
         const text = inputField.value.trim();
         if (!text) return;
 
-        // 1. 사용자 메시지 추가
+        // 1. 사용자 메시지 표시
         addMessage(text, 'user');
         inputField.value = '';
         inputField.disabled = true;
         sendBtn.disabled = true;
 
-        // 2. 로딩 표시
-        loading.style.display = 'block';
+        // 2. AI 메시지 컨테이너 미리 생성 (여기에 글자가 쫘르륵 찍힘)
+        const aiMessageDiv = addMessage('', 'ai');
         chatWindow.scrollTop = chatWindow.scrollHeight;
 
         try {
-          // 3. NestJS 서버로 요청 전송
+          // 3. Fetch 요청 (스트리밍)
           const response = await fetch('/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: text }),
           });
 
-          if (!response.ok) throw new Error('Server error');
+          if (!response.ok) throw new Error('Server Error');
+          if (!response.body) throw new Error('No response body');
 
-          const data = await response.json();
+          // 4. 스트림 리더 생성
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
 
-          // 4. AI 응답 추가
-          loading.style.display = 'none';
-          addMessage(data.reply, 'ai');
+          // 5. 청크 읽기 루프
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            // 바이너리 청크를 텍스트로 변환하여 추가
+            const chunk = decoder.decode(value, { stream: true });
+            aiMessageDiv.innerText += chunk;
+
+            // 스크롤 자동 이동
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+          }
         } catch (error) {
-          loading.style.display = 'none';
-          addMessage(
-            "Sorry, I'm having trouble connecting to the kitchen. Please try again.",
-            'ai',
-          );
+          aiMessageDiv.innerText += ' [Error connecting to AI]';
           console.error(error);
         } finally {
           inputField.disabled = false;
@@ -184,16 +191,15 @@
         }
       }
 
+      // 메시지 UI 추가 헬퍼 함수
       function addMessage(text, sender) {
         const chatWindow = document.getElementById('chatWindow');
-        const loading = document.getElementById('loading');
         const div = document.createElement('div');
         div.className = `message ${sender}`;
         div.innerText = text;
-
-        // 로딩 바 바로 위에 메시지 삽입
-        chatWindow.insertBefore(div, loading);
+        chatWindow.appendChild(div);
         chatWindow.scrollTop = chatWindow.scrollHeight;
+        return div; // 생성된 div 요소를 반환 (나중에 텍스트 추가를 위해)
       }
 
       function handleEnter(e) {
