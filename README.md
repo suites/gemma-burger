@@ -63,7 +63,7 @@ graph TD
 | **Backend**      | **NestJS**, TypeORM           | Main Application Framework             |
 | **AI Server**    | **FastAPI**, Uvicorn          | Model Serving API                      |
 | **Model Engine** | **MLX-LM**, Hugging Face      | Apple Silicon 최적화 추론 및 학습      |
-| **LLM**          | **google/gemma-3-4b-it**      | 4-bit Quantized (Memory Efficient)     |
+| **LLM**          | **google/gemma-3-4b-it-4bit** | 4-bit Quantized (Memory Efficient)     |
 | **Database**     | **PostgreSQL** + **pgvector** | RDB & Vector DB Hybrid                 |
 | **DevOps**       | Docker, Docker Compose        | Container Orchestration                |
 | **MLOps**        | MLflow                        | Experiment Tracking (Fine-tuning Loss) |
@@ -153,21 +153,21 @@ docker-compose up --build
 
 ### Phase 1: Baseline (기본 구축)
 
-- [ ] Python FastAPI 서버 구축 및 Gemma-3-4b 로드.
-- [ ] NestJS 서버 구축 및 Python 서버와 HTTP 통신 연결.
-- [ ] 기본 채팅 UI 구현 및 "Hello" 테스트.
+- [x] Python FastAPI 서버 구축 및 Gemma-3-4b-it-4bit 로드.
+- [x] NestJS 서버 구축 및 Python 서버와 HTTP 통신 연결.
+- [x] 기본 채팅 UI 구현 및 "Hello" 테스트.
 
 ### Phase 2: RAG (지식 주입)
 
-- [ ] `menu.json` 데이터 정의.
-- [ ] PostgreSQL `pgvector` 설정 및 메뉴 데이터 임베딩/저장.
-- [ ] NestJS에서 사용자 질문에 따른 메뉴 검색 로직 구현.
+- [x] `menu.json` 데이터 정의.
+- [x] PostgreSQL `pgvector` 설정 및 메뉴 데이터 임베딩/저장.
+- [x] NestJS에서 사용자 질문에 따른 메뉴 검색 로직 구현.
 
 ### Phase 3: Fine-tuning (페르소나 입히기)
 
-- [ ] LLM을 활용한 합성 데이터(Synthetic Data) 100쌍 생성.
-- [ ] MLX LoRA를 활용하여 "친절한 직원" 말투 학습.
-- [ ] 학습된 Adapter를 Python 서버에 적용.
+- [x] LLM을 활용한 합성 데이터(Synthetic Data) 50쌍 생성.
+- [x] MLX LoRA를 활용하여 "친절한 직원" 말투 학습.
+- [x] 학습된 Adapter를 Python 서버에 적용.
 
 ### Phase 4: MLOps (관리 및 평가)
 

@@ -7,7 +7,7 @@ from mlx_lm.sample_utils import make_sampler
 # GPU 강제 사용
 mx.set_default_device(mx.gpu)
 
-MODEL_ID = "mlx-community/gemma-2-2b-it-4bit"
+MODEL_ID = "mlx-community/gemma-3-4b-it-4bit"
 
 
 class LLMEngine:
