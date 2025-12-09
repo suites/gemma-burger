@@ -11,9 +11,12 @@ export class ChatService {
   constructor(private readonly httpService: HttpService) {}
 
   // 반환 타입이 문자열이 아니라 'Readable Stream'이 됩니다.
-  async generateStream(userMessage: string): Promise<Readable> {
+  async generateStream(
+    userMessage: string,
+    sessionId: string,
+  ): Promise<Readable> {
     try {
-      const payload = { message: userMessage };
+      const payload = { message: userMessage, session_id: sessionId };
 
       // 1. Python 서버에 요청 (responseType: 'stream' 필수!)
       const response$ = this.httpService.post(this.aiServerUrl, payload, {

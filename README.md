@@ -197,11 +197,19 @@ npm run start:dev
 
 ### Phase 5: Advanced AI Service & UX (심화 기능 및 UX 개선)
 
-- [ ] **Streaming Response (SSE)**
+- [x] **Streaming Response (SSE)**
 
   - Python: `generate_step` 함수와 Generator를 활용하여 토큰 단위 생성 로직 구현.
   - NestJS: Python 서버의 스트림을 받아 클라이언트로 실시간 중계하는 SSE(Server-Sent Events) 로직 구현.
   - Frontend: `EventSource` API를 사용하여 답변이 실시간으로 작성되는 타이핑 효과 구현.
+
+- [x] Agentic Workflow (LangGraph)
+
+  - 상태 머신 도입, ORDER vs GENERAL vs HISTORY 의도 분류 구현.
+
+- [x] Memory & Context
+
+  - MemorySaver로 대화 기억 구현, "주문 내역 알려줘" 기능 추가.
 
 - [ ] **Structured RAG (Metadata Filtering)**
 

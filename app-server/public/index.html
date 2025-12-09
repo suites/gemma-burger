@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>🍔 Gemma Burger</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.2/uuid.min.js"></script>
     <style>
-      /* 간단한 스타일링 (iOS 느낌) */
       body {
         font-family:
           -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
@@ -101,18 +101,6 @@
         background-color: #b0c4de;
         cursor: not-allowed;
       }
-
-      /* 로딩 애니메이션 */
-      .typing-indicator {
-        display: none;
-        align-self: flex-start;
-        background-color: #e5e5ea;
-        padding: 12px 16px;
-        border-radius: 18px;
-        border-bottom-left-radius: 4px;
-        color: #8e8e93;
-        font-size: 0.8em;
-      }
     </style>
   </head>
   <body>
@@ -122,7 +110,6 @@
         <div class="message ai">
           Hello! I'm Gemma, your burger concierge. What can I get for you today?
         </div>
-        <div class="typing-indicator" id="loading">Gemma is typing...</div>
       </div>
       <div class="input-area">
         <input
@@ -136,6 +123,9 @@
     </div>
 
     <script>
+      const sessionId = uuid.v4();
+      console.log('Current Session ID:', sessionId);
+
       async function sendMessage() {
         const inputField = document.getElementById('userInput');
         const sendBtn = document.getElementById('sendBtn');
@@ -144,41 +134,35 @@
         const text = inputField.value.trim();
         if (!text) return;
 
-        // 1. 사용자 메시지 표시
         addMessage(text, 'user');
         inputField.value = '';
         inputField.disabled = true;
         sendBtn.disabled = true;
 
-        // 2. AI 메시지 컨테이너 미리 생성 (여기에 글자가 쫘르륵 찍힘)
         const aiMessageDiv = addMessage('', 'ai');
         chatWindow.scrollTop = chatWindow.scrollHeight;
 
         try {
-          // 3. Fetch 요청 (스트리밍)
           const response = await fetch('/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: text }),
+            body: JSON.stringify({
+              message: text,
+              sessionId: sessionId, // 🟢 세션 ID 전송
+            }),
           });
 
           if (!response.ok) throw new Error('Server Error');
           if (!response.body) throw new Error('No response body');
 
-          // 4. 스트림 리더 생성
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
 
-          // 5. 청크 읽기 루프
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-
-            // 바이너리 청크를 텍스트로 변환하여 추가
             const chunk = decoder.decode(value, { stream: true });
             aiMessageDiv.innerText += chunk;
-
-            // 스크롤 자동 이동
             chatWindow.scrollTop = chatWindow.scrollHeight;
           }
         } catch (error) {
@@ -191,7 +175,6 @@
         }
       }
 
-      // 메시지 UI 추가 헬퍼 함수
       function addMessage(text, sender) {
         const chatWindow = document.getElementById('chatWindow');
         const div = document.createElement('div');
@@ -199,7 +182,7 @@
         div.innerText = text;
         chatWindow.appendChild(div);
         chatWindow.scrollTop = chatWindow.scrollHeight;
-        return div; // 생성된 div 요소를 반환 (나중에 텍스트 추가를 위해)
+        return div;
       }
 
       function handleEnter(e) {

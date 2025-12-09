@@ -1,7 +1,7 @@
 import os
 
 import mlx.core as mx
-from mlx_lm import load, stream_generate
+from mlx_lm import load, stream_generate, generate
 from mlx_lm.sample_utils import make_sampler
 
 mx.set_default_device(mx.gpu)
@@ -55,5 +55,34 @@ class LLMEngine:
             # 이것을 바로바로 yield 하여 호출자에게 전달합니다.
             yield response.text
 
+    def generate_text(
+        self, prompt: str, max_tokens: int = 100, temperature: float = 0.0
+    ) -> str:
+        """
+        스트리밍 없이 한 번에 텍스트를 생성하여 반환합니다.
+        주로 내부 로직(Intent 분류, Tool 호출 등)에서 사용합니다.
+        """
+        if not self.model:
+            raise RuntimeError("Model is not loaded!")
+
+        # Router용 프롬프트는 보통 이미 완성된 형태(System Prompt 포함)로 들어오지만,
+        # Chat Template을 적용해야 모델이 더 잘 알아듣습니다.
+        # (단, 입력 prompt가 이미 포맷팅된 상태라면 이 과정은 생략 가능합니다.
+        #  여기서는 안전하게 'user' 메시지로 감싸서 처리합니다.)
+        messages = [{"role": "user", "content": prompt}]
+        prompt_formatted = self.tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
+
+        response = generate(
+            self.model,
+            self.tokenizer,
+            prompt=prompt_formatted,
+            max_tokens=max_tokens,
+            sampler=make_sampler(temp=temperature), # 분류 작업은 창의성이 필요 없으므로 temp=0.0 권장
+            verbose=False # 로그 지저분해지지 않게 끔
+        )
+        
+        return response
 
 engine = LLMEngine()
