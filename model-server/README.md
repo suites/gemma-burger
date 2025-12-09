@@ -50,3 +50,10 @@ poetry run mlx_lm.lora --config lora_config.yaml --train
     └── adapter_config.json
     ├── adapters.safetensors
 ```
+
+### mlflow와 함께 파인튜닝
+
+```bash
+docker-compose up -d
+poetry run python scripts/train_with_mlflow.py
+```

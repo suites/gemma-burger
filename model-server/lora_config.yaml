@@ -9,7 +9,7 @@ data: "../resources/fine_tuning"
 seed: 42
 num_layers: 16 # LoRA를 적용할 레이어 수 (높을수록 학습 오래 걸림)
 batch_size: 4 # 한 번에 학습할 데이터 수 (M1/M2라면 4, M3 Max라면 8~16)
-iters: 600 # 총 반복 횟수 (데이터 50개 * 12 epoch ≈ 600)
+iters: 400 # 총 반복 횟수 (데이터 50개 * 8 epoch ≈ 400)
 val_batches: 25 # 검증 빈도
 learning_rate: 1e-4 # 학습률 (너무 크면 발산, 너무 작으면 학습 안됨)
 steps_per_report: 10 # 로그 출력 빈도

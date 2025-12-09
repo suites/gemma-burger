@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  # 🛠️ 0. Init Service (파일 생성 전담)
+  # 이 녀석이 먼저 실행되어 mlflow.db 파일을 확실하게 만듭니다.
+  init:
+    image: alpine:latest
+    container_name: gemma-init
+    # data 폴더가 없으면 만들고, db 파일이 없으면 만들고, 권한을 777로 엽니다.
+    command: >
+      sh -c "mkdir -p /data/artifacts && 
+             touch /data/mlflow.db && 
+             chmod 777 /data/mlflow.db /data/artifacts"
+    volumes:
+      - ./data:/data
+
+  # 🚀 1. Main Service
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.10.0
+    container_name: gemma-mlflow
+    ports:
+      - "5001:5000"
+    environment:
+      MLFLOW_ARTIFACT_ROOT: /mlartifacts
+    command: >
+      mlflow server 
+      --backend-store-uri sqlite:///mlflow.db
+      --default-artifact-root /mlartifacts 
+      --serve-artifacts 
+      --host 0.0.0.0
+    volumes:
+      - ./data/mlflow.db:/mlflow.db
+      - ./data/artifacts:/mlartifacts
+    # ✅ 핵심: init 컨테이너가 성공적으로 끝나야(service_completed_successfully) 실행됨
+    depends_on:
+      init:
+        condition: service_completed_successfully

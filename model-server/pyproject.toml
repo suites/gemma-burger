@@ -17,6 +17,8 @@ langchain-community = "^0.4.1"
 langchain-huggingface = "^1.1.0"
 langchain-pinecone = "^0.2.13"
 sentence-transformers = "^5.1.2"
+boto3 = "^1.42.5"
+mlflow = "^3.7.0"
 
 [build-system]
 requires = ["poetry-core"]

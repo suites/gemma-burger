@@ -171,5 +171,5 @@ docker-compose up --build
 
 ### Phase 4: MLOps (관리 및 평가)
 
-- [ ] MLflow 연동하여 학습 Loss 시각화.
-- [ ] 파인튜닝 전/후 응답 퀄리티 비교 평가.
+- [x] MLflow 연동하여 학습 Loss 시각화.
+- [x] 파인튜닝 전/후 응답 퀄리티 비교 평가.
