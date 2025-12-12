@@ -21,6 +21,7 @@ boto3 = "^1.42.5"
 mlflow = "^3.7.0"
 langgraph = "^1.0.4"
 langchain-core = "^1.1.2"
+pyyaml = "^6.0.3"
 
 [build-system]
 requires = ["poetry-core"]
