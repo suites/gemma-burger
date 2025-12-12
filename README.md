@@ -217,7 +217,7 @@ npm run start:dev
   - Pinecone: 데이터 주입 시 `type` 메타데이터(예: menu, info)를 구분하여 저장.
   - Logic: 사용자 질문의 의도를 파악하여 적절한 메타데이터 필터를 적용하는 검색 로직 구현.
 
-- [ ] **Multi-Agent System (Router & Persona)**
+- [x] **Multi-Agent System (Router & Persona)**
 
   - Persona: 불만 접수 및 규정 안내를 담당하는 매니저 에이전트(Gordon) 추가.
   - Router Chain: 사용자 입력의 성격(주문/잡담 vs 불만/심각)을 분류하여 적절한 에이전트에게 요청을 분배.
