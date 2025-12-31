@@ -1,16 +1,93 @@
+from typing import Optional
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.agent import agent_app
+from app.agent import agent_app, generate_customer_response
 from app.engine import engine
 
 app = FastAPI(title="Gemma Agent Server")
 
 
 class ChatRequest(BaseModel):
-    message: str
+    message: Optional[str] = None
     session_id: str = "default_guest"
+
+
+@app.post("/chat/simulate")
+async def run_simulation(req: ChatRequest):
+    """Sara와 직원 간의 자율 대화 시뮬레이션을 실행합니다."""
+    try:
+        session_id = req.session_id
+        config = {"configurable": {"thread_id": session_id}}
+
+        async def simulation_generator():
+            # 1. 시뮬레이션 초기화: Sara의 첫 인사
+            current_input = generate_customer_response("sara", [])
+            yield f"[SARA]: {current_input}\n\n"
+
+            max_turns = 10  # 최대 10턴 제한
+            for turn in range(max_turns):
+                # 2. 직원의 응답 생성
+                input_state = {
+                    "messages": [{"role": "user", "content": current_input}],
+                    "current_intent": "general",
+                    "final_response": "",
+                }
+
+                # 에이전트 실행
+                result = agent_app.invoke(input_state, config=config)
+                final_prompt = result["final_response"]
+                dynamic_temp = result.get("temperature", 0.7)
+
+                # 직원의 답변 스트리밍 및 수집
+                full_staff_response = ""
+                yield "[ROSY]: "
+                stream = engine.generate_text_stream(
+                    prompt=final_prompt, max_tokens=300, temperature=dynamic_temp
+                )
+                for token in stream:
+                    full_staff_response += token
+                    yield token
+                yield "\n\n"
+
+                # 대화 기록 업데이트 (직원의 말 저장)
+                agent_app.update_state(
+                    config,
+                    {
+                        "messages": [
+                            {"role": "assistant", "content": full_staff_response}
+                        ]
+                    },
+                )
+
+                # 3. 현재까지의 기록을 바탕으로 Sara의 다음 반응 생성
+                # 현재 세션의 전체 메시지 가져오기
+                current_state = agent_app.get_state(config)
+                history = current_state.values.get("messages", [])
+
+                current_input = generate_customer_response("sara", history)
+                yield f"[SARA]: {current_input}\n\n"
+
+                # 4. 종료 조건 확인
+                if (
+                    "[FINISH_ORDER]" in current_input
+                    or "[CANCEL_ORDER]" in current_input
+                ):
+                    yield "--- Simulation Ended ---"
+                    break
+
+                # 대화 기록 업데이트 (손님의 말 저장)
+                agent_app.update_state(
+                    config, {"messages": [{"role": "user", "content": current_input}]}
+                )
+
+        return StreamingResponse(simulation_generator(), media_type="text/plain")
+
+    except Exception as e:
+        print(f"❌ Simulation Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Simulation failed")
 
 
 @app.post("/chat")

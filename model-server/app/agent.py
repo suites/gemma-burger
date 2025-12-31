@@ -246,6 +246,38 @@ Answer:"""
     return {"final_response": prompt, "temperature": 0.0}
 
 
+def generate_customer_response(persona_key: str, history: List[dict]):
+    """직원의 답변이 포함된 대화 기록을 보고 손님의 다음 발화를 생성합니다."""
+    p = PERSONA_CONFIG.get(persona_key)
+
+    # 대화 기록 포맷팅
+    history_text = ""
+    for msg in history:
+        role = "STAFF" if msg["role"] == "assistant" else "CUSTOMER"
+        history_text += f"{role}: {msg['content']}\n"
+
+    prompt = f"""
+You are {p["name"]}, {p["description"]}.
+Style: {p["style"]}
+
+[Conversation History]
+{history_text}
+
+[Your Goal]
+1. Order a meal with cheese and NO vegetables.
+2. Stay under your budget of $20.
+3. If the order is confirmed and you are satisfied, say "[FINISH_ORDER]".
+4. If you cannot find a menu within budget or have a serious problem, say "[CANCEL_ORDER]".
+5. Otherwise, continue the conversation to reach your goal.
+
+Response (ONLY output your next message as {p["name"]}):"""
+
+    response = engine.generate_text(
+        prompt, max_tokens=150, temperature=p["temperature"]
+    )
+    return response.strip()
+
+
 # =============================================================================
 # 4. Graph Construction
 # =============================================================================

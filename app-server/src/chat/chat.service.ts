@@ -32,4 +32,27 @@ export class ChatService {
       throw new InternalServerErrorException('AI 연결 실패');
     }
   }
+
+  async startSimulation(sessionId: string): Promise<Readable> {
+    try {
+      // 1. 시뮬레이션 전용 엔드포인트 URL 설정
+      const simulateUrl = `${this.aiServerUrl}/simulate`;
+
+      // 2. 페이로드 설정 (메시지 없이 세션 ID만 전송)
+      const payload = { session_id: sessionId };
+
+      // 3. Python 서버에 스트림 요청
+      const response$ = this.httpService.post(simulateUrl, payload, {
+        responseType: 'stream',
+      });
+
+      const response: AxiosResponse<Readable> = await lastValueFrom(response$);
+
+      // 4. 시뮬레이션 스트림 객체 반환
+      return response.data;
+    } catch (error) {
+      console.error('Simulation Connection Error:', error.message);
+      throw new InternalServerErrorException('시뮬레이션 서버 연결 실패');
+    }
+  }
 }
