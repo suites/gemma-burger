@@ -23,71 +23,74 @@ async def run_simulation(req: ChatRequest):
         config = {"configurable": {"thread_id": session_id}}
 
         async def simulation_generator():
-            # 1. 시뮬레이션 초기화: Sara의 첫 인사
-            current_input = generate_customer_response("sara", [])
-            yield f"[SARA]: {current_input}\n\n"
+            try:
+                # 🟢 1. 들여쓰기 수정: try 블록 내부로 이동
+                current_input = generate_customer_response("sara", [])
+                yield f"[SARA]:{current_input}"
 
-            max_turns = 10  # 최대 10턴 제한
-            for turn in range(max_turns):
-                # 2. 직원의 응답 생성
-                input_state = {
-                    "messages": [{"role": "user", "content": current_input}],
-                    "current_intent": "general",
-                    "final_response": "",
-                }
+                max_turns = 10
+                for turn in range(max_turns):
+                    # 2. 직원의 응답 생성
+                    input_state = {
+                        "messages": [{"role": "user", "content": current_input}],
+                        "current_intent": "general",
+                        "final_response": "",
+                    }
 
-                # 에이전트 실행
-                result = agent_app.invoke(input_state, config=config)
-                final_prompt = result["final_response"]
-                dynamic_temp = result.get("temperature", 0.7)
+                    result = agent_app.invoke(input_state, config=config)
+                    final_prompt = result["final_response"]
+                    dynamic_temp = result.get("temperature", 0.7)
 
-                # 직원의 답변 스트리밍 및 수집
-                full_staff_response = ""
-                yield "[ROSY]: "
-                stream = engine.generate_text_stream(
-                    prompt=final_prompt, max_tokens=300, temperature=dynamic_temp
-                )
-                for token in stream:
-                    full_staff_response += token
-                    yield token
-                yield "\n\n"
+                    yield "[ROSY]:"
 
-                # 대화 기록 업데이트 (직원의 말 저장)
-                agent_app.update_state(
-                    config,
-                    {
-                        "messages": [
-                            {"role": "assistant", "content": full_staff_response}
-                        ]
-                    },
-                )
+                    full_staff_response = ""
+                    stream = engine.generate_text_stream(
+                        prompt=final_prompt, max_tokens=300, temperature=dynamic_temp
+                    )
 
-                # 3. 현재까지의 기록을 바탕으로 Sara의 다음 반응 생성
-                # 현재 세션의 전체 메시지 가져오기
-                current_state = agent_app.get_state(config)
-                history = current_state.values.get("messages", [])
+                    for token in stream:
+                        full_staff_response += token
+                        yield token
 
-                current_input = generate_customer_response("sara", history)
-                yield f"[SARA]: {current_input}\n\n"
+                    agent_app.update_state(
+                        config,
+                        {
+                            "messages": [
+                                {"role": "assistant", "content": full_staff_response}
+                            ]
+                        },
+                    )
 
-                # 4. 종료 조건 확인
-                if (
-                    "[FINISH_ORDER]" in current_input
-                    or "[CANCEL_ORDER]" in current_input
-                ):
-                    yield "--- Simulation Ended ---"
-                    break
+                    # 3. Sara의 다음 반응 생성
+                    current_state = agent_app.get_state(config)
+                    history = current_state.values.get("messages", [])
+                    current_input = generate_customer_response("sara", history)
 
-                # 대화 기록 업데이트 (손님의 말 저장)
-                agent_app.update_state(
-                    config, {"messages": [{"role": "user", "content": current_input}]}
-                )
+                    yield f"[SARA]:{current_input}"
 
+                    # 4. 종료 조건 확인
+                    if (
+                        "[FINISH_ORDER]" in current_input
+                        or "[CANCEL_ORDER]" in current_input
+                    ):
+                        yield "--- Simulation Ended ---"
+                        break
+
+                    agent_app.update_state(
+                        config,
+                        {"messages": [{"role": "user", "content": current_input}]},
+                    )
+
+            except Exception as e:
+                print(f"Internal Simulation Yield Error: {e}")
+                yield f"[ROSY]:Sorry, I encountered an error during generation: {str(e)}"
+
+        # 🟢 5. 구조 수정: return 문은 try 블록의 끝, run_simulation 레벨에 위치해야 함
         return StreamingResponse(simulation_generator(), media_type="text/plain")
 
     except Exception as e:
-        print(f"❌ Simulation Error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Simulation failed")
+        print(f"❌ Simulation Request Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Simulation failed to start")
 
 
 @app.post("/chat")
