@@ -21,7 +21,23 @@ def load_personas():
 
     if not os.path.exists(yaml_path):
         print(f"⚠️ Warning: Personas file not found at {yaml_path}. Using default.")
-        raise FileNotFoundError(f"Personas file not found at {yaml_path}")
+        # 파일이 없을 때를 대비한 기본값
+        return {
+            "rosy": {
+                "name": "Rosy",
+                "description": "a friendly staff",
+                "style": "Be friendly.",
+                "prefix": "Rosy: ",
+                "temperature": 0.7,
+            },
+            "gordon": {
+                "name": "Gordon",
+                "description": "manager",
+                "style": "Strict.",
+                "prefix": "Gordon: ",
+                "temperature": 0.2,
+            },
+        }
 
     with open(yaml_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
@@ -77,42 +93,37 @@ def classify_intent(state: AgentState):
     """LLM Router: 사용자의 의도를 분석하여 적절한 핸들러로 분배합니다."""
     last_msg = state["messages"][-1]["content"]
 
-    # Few-shot Prompting for Classification
+    # 🟢 [수정됨] 오분류 방지를 위한 강력한 가이드라인 적용
     prompt = f"""
-You are an intent classifier for a burger shop chatbot.
-Classify the user's message into ONE of the following categories:
+You are the brain of a smart burger shop clerk.
+Classify the user's message into EXACTLY ONE of these categories:
 
-1. HISTORY:
-   - User asks about previous orders, bill, receipt, or "what did I order?".
+1. GREETING:
+   - Social phrases only (Hi, Hello, Thanks, Bye, Good morning).
+   - NO specific questions included.
 
-2. ORDER:
-   - User explicitly wants to ADD a specific item to the cart NOW (e.g., "I want a burger", "Add fries").
-   - User has made a decision.
-
-3. COMPLAINT:
-   - User expresses dissatisfaction, anger, or asks for a manager/refund.
-   - Keywords: "bad", "cold", "refund", "manager", "hate", "slow".
-
-4. GREETING:
-   - Social phrases only (Hi, Hello, Thanks, Bye).
-   - NO questions included.
-
-5. MENU_QA:
+2. MENU_QA:
    - Questions about food, taste, ingredients, price, or recommendations.
-   - Example: "What's good?", "Do you have vegan options?"
+   - Questions about capabilities or usage ("What can I do?", "How do I order?", "Help").
+   - Example: "What's good?", "What can I do here?"
 
-6. STORE_INFO:
-   - Questions about the facility (Wi-Fi, Bathroom, Parking, Hours, Location).
-   - NOT about food.
+3. STORE_INFO:
+   - Facility info (Wi-Fi, Bathroom, Parking, Hours, Location).
 
+4. ORDER:
+   - Explicit intent to buy/add items.
+
+5. HISTORY:
+   - Asking about **PAST** orders ("What did I order?", "Receipt").
+   - **CRITICAL**: "Hello", "Hi", "What can I do?" are NOT History. They are GREETING or MENU_QA.
+
+6. COMPLAINT:
+   - Negative feedback.
 
 User Message: "{last_msg}"
+Response (ONLY Category Name):"""
 
-Response (ONLY output the category name: HISTORY, ORDER, COMPLAINT, GREETING, 
-MENU_QA, or STORE_INFO):
-"""
-
-    # Router는 창의성이 필요 없으므로 temp=0.0 사용
+    # Router는 정확해야 하므로 temp=0.0 사용
     response = engine.generate_text(prompt, max_tokens=10, temperature=0.0)
     intent = response.strip().upper()
 
@@ -129,6 +140,7 @@ MENU_QA, or STORE_INFO):
     elif "STORE_INFO" in intent:
         final_intent = "store_info"
     else:
+        # fallback to greeting/general if unsure
         final_intent = "greeting"
 
     print(
@@ -143,7 +155,6 @@ def handle_order(state: AgentState):
     query = state["messages"][-1]["content"]
     print(f"🔍 [Agent] Verifying Order against Menu DB: '{query}'")
 
-    # 주문 시에는 'type: menu' 데이터만 필터링하여 검색
     docs = rag_engine.search(query, filter={"type": "menu"})
     context = "\n".join(docs)
 
@@ -171,7 +182,6 @@ def handle_complaint(state: AgentState):
     query = state["messages"][-1]["content"]
     print("🚨 [Agent] Complaint detected! Switching to Manager Gordon.")
 
-    # 규정(Policy) 정보 검색 (type: info)
     docs = rag_engine.search(query, filter={"type": "info"})
     context = "\n".join(docs)
 
@@ -192,7 +202,6 @@ def handle_history(state: AgentState):
     """주문 내역 확인 -> Rosy (계산 및 요약)"""
     # 1. 대화 기록 포맷팅
     history_lines = []
-    # 현재 질문을 제외한 과거 기록 확인
     past_messages = state["messages"][:-1]
 
     for msg in state["messages"]:
@@ -211,65 +220,69 @@ def handle_history(state: AgentState):
 
     p = PERSONA_CONFIG["rosy"]
 
-    # 방어 로직: 이전 대화가 없으면 즉시 반환
+    # 방어 로직 1: 이전 대화가 아예 없으면 즉시 반환
     if len(past_messages) == 0:
         return {
             "final_response": f"{p['prefix']}You haven't ordered anything yet! 📝 How about trying our famous Gemma Classic? 🍔",
             "temperature": 0.7,
         }
 
-    # 2. 요약 프롬프트
+    # 🟢 [수정됨] 옵션 제안 금지 및 빈 영수증 방지 프롬프트
     prompt = f"""
 You are {p["name"]}, {p["description"]}.
-Task: Summarize the customer's order based ONLY on the history below.
+Your Role: A burger shop clerk. (Do NOT act as a writing assistant).
+
+Task: Check the conversation history below for CONFIRMED orders.
 
 [Conversation]
 {conversation_text}
 
 [Rules]
-1. List only confirmed items (where CLERK said yes).
-2. ALWAYS start your response with "{p["prefix"]}".
-3. Output format example:
-   "{p["prefix"]}Here is your order so far! 🧾
-   - [Quantity]x [Item Name] ($[Unit Price])
-   ----------------
-   Total: $[Total Price]
-   Is this correct? 😊"
+1. LOOK CAREFULLY for items where the CLERK explicitly said "Confirmed" or "Added".
+2. **IF** valid orders exist:
+   - Output the receipt in the specified format:
+     "{p["prefix"]}Here is your order so far! 🧾
+     - [Quantity]x [Item Name] ($[Unit Price])
+     ----------------
+     Total: $[Total Price]
+     Is this correct? 😊"
+3. **IF NO** confirmed orders are found (or history only has greetings):
+   - Respond strictly with: "{p["prefix"]}You haven't ordered anything yet! 📝 Feel free to ask about our menu or daily specials! 🍔"
+4. **NEVER** provide options or suggestions on what the user should say. Just answer as Rosy.
 
 Answer:"""
 
-    # 계산 및 요약은 정확해야 하므로 temperature=0.0
     return {"final_response": prompt, "temperature": 0.0}
 
 
 def handle_greeting(state: AgentState):
-    """일반 대화 -> Rosy (전체 검색)"""
+    """인사 -> Rosy (RAG 없음)"""
     query = state["messages"][-1]["content"]
 
     prompt = build_prompt(
         persona_key="rosy",
-        task_instruction="Just greet the customer warmly. DO NOT give info.",
-        context_data="",
+        task_instruction="Just greet the customer warmly. DO NOT give menu info unless asked.",
+        context_data="No external context needed.",
         user_query=query,
     )
 
     return {
         "final_response": prompt,
-        "temperature": PERSONA_CONFIG["rosy"]["temperature"],
+        "temperature": 0.7,
     }
 
 
 def handle_menu_qa(state: AgentState):
-    """일반 대화 -> Rosy (전체 검색)"""
+    """메뉴 질문 -> Rosy (메뉴판 검색)"""
     query = state["messages"][-1]["content"]
 
-    # 일반 질문은 전체 정보(메뉴+매장정보) 검색
+    # 메뉴 정보만 필터링
     docs = rag_engine.search(query, filter={"type": "menu"})
     context = "\n".join(docs)
 
     prompt = build_prompt(
         persona_key="rosy",
-        task_instruction="Explane the menu items or give recommendations.",
+        task_instruction="Explain the menu items, capabilities, or give recommendations based on the context.",
         context_data=context,
         user_query=query,
     )
@@ -281,16 +294,16 @@ def handle_menu_qa(state: AgentState):
 
 
 def handle_store_info(state: AgentState):
-    """일반 대화 -> Rosy (전체 검색)"""
+    """시설 질문 -> Rosy (매장 정보 검색)"""
     query = state["messages"][-1]["content"]
 
-    # 일반 질문은 전체 정보(메뉴+매장정보) 검색
+    # 매장 정보만 필터링
     docs = rag_engine.search(query, filter={"type": "info"})
     context = "\n".join(docs)
 
     prompt = build_prompt(
         persona_key="rosy",
-        task_instruction="Answer the customer's question about store facilities.",
+        task_instruction="Answer the customer's question about store facilities (WiFi, hours, etc).",
         context_data=context,
         user_query=query,
     )
