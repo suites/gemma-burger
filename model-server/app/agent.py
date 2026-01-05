@@ -93,13 +93,24 @@ Classify the user's message into ONE of the following categories:
    - User expresses dissatisfaction, anger, or asks for a manager/refund.
    - Keywords: "bad", "cold", "refund", "manager", "hate", "slow".
 
-4. GENERAL:
-   - User asks about menu, price, location, or just says "I want something..." without picking a specific item.
-   - Greetings or general questions.
+4. GREETING:
+   - Social phrases only (Hi, Hello, Thanks, Bye).
+   - NO questions included.
+
+5. MENU_QA:
+   - Questions about food, taste, ingredients, price, or recommendations.
+   - Example: "What's good?", "Do you have vegan options?"
+
+6. STORE_INFO:
+   - Questions about the facility (Wi-Fi, Bathroom, Parking, Hours, Location).
+   - NOT about food.
+
 
 User Message: "{last_msg}"
 
-Response (ONLY output the category name: HISTORY, ORDER, COMPLAINT, or GENERAL):"""
+Response (ONLY output the category name: HISTORY, ORDER, COMPLAINT, GREETING, 
+MENU_QA, or STORE_INFO):
+"""
 
     # Router는 창의성이 필요 없으므로 temp=0.0 사용
     response = engine.generate_text(prompt, max_tokens=10, temperature=0.0)
@@ -111,35 +122,20 @@ Response (ONLY output the category name: HISTORY, ORDER, COMPLAINT, or GENERAL):
         final_intent = "order"
     elif "COMPLAINT" in intent:
         final_intent = "complaint"
+    elif "GREETING" in intent:
+        final_intent = "greeting"
+    elif "MENU_QA" in intent:
+        final_intent = "menu_qa"
+    elif "STORE_INFO" in intent:
+        final_intent = "store_info"
     else:
-        final_intent = "general"
+        final_intent = "greeting"
 
     print(
         f"🧭 [LLM Router] '{last_msg}' -> AI Thought: {intent} -> Final: {final_intent}"
     )
 
     return {"current_intent": final_intent}
-
-
-def handle_general(state: AgentState):
-    """일반 대화 -> Rosy (전체 검색)"""
-    query = state["messages"][-1]["content"]
-
-    # 일반 질문은 전체 정보(메뉴+매장정보) 검색
-    docs = rag_engine.search(query)
-    context = "\n".join(docs)
-
-    prompt = build_prompt(
-        persona_key="rosy",
-        task_instruction="Answer the customer's question based ONLY on the info below.",
-        context_data=context,
-        user_query=query,
-    )
-
-    return {
-        "final_response": prompt,
-        "temperature": PERSONA_CONFIG["rosy"]["temperature"],
-    }
 
 
 def handle_order(state: AgentState):
@@ -246,6 +242,65 @@ Answer:"""
     return {"final_response": prompt, "temperature": 0.0}
 
 
+def handle_greeting(state: AgentState):
+    """일반 대화 -> Rosy (전체 검색)"""
+    query = state["messages"][-1]["content"]
+
+    prompt = build_prompt(
+        persona_key="rosy",
+        task_instruction="Just greet the customer warmly. DO NOT give info.",
+        context_data="",
+        user_query=query,
+    )
+
+    return {
+        "final_response": prompt,
+        "temperature": PERSONA_CONFIG["rosy"]["temperature"],
+    }
+
+
+def handle_menu_qa(state: AgentState):
+    """일반 대화 -> Rosy (전체 검색)"""
+    query = state["messages"][-1]["content"]
+
+    # 일반 질문은 전체 정보(메뉴+매장정보) 검색
+    docs = rag_engine.search(query, filter={"type": "menu"})
+    context = "\n".join(docs)
+
+    prompt = build_prompt(
+        persona_key="rosy",
+        task_instruction="Explane the menu items or give recommendations.",
+        context_data=context,
+        user_query=query,
+    )
+
+    return {
+        "final_response": prompt,
+        "temperature": 0.5,
+    }
+
+
+def handle_store_info(state: AgentState):
+    """일반 대화 -> Rosy (전체 검색)"""
+    query = state["messages"][-1]["content"]
+
+    # 일반 질문은 전체 정보(메뉴+매장정보) 검색
+    docs = rag_engine.search(query, filter={"type": "info"})
+    context = "\n".join(docs)
+
+    prompt = build_prompt(
+        persona_key="rosy",
+        task_instruction="Answer the customer's question about store facilities.",
+        context_data=context,
+        user_query=query,
+    )
+
+    return {
+        "final_response": prompt,
+        "temperature": 0.2,
+    }
+
+
 # =============================================================================
 # 4. Graph Construction
 # =============================================================================
@@ -254,10 +309,12 @@ workflow = StateGraph(AgentState)
 
 # 노드 등록
 workflow.add_node("classify", classify_intent)
-workflow.add_node("general_handler", handle_general)
 workflow.add_node("order_handler", handle_order)
 workflow.add_node("complaint_handler", handle_complaint)
 workflow.add_node("history_handler", handle_history)
+workflow.add_node("greeting_handler", handle_greeting)
+workflow.add_node("menu_qa_handler", handle_menu_qa)
+workflow.add_node("store_info_handler", handle_store_info)
 
 # 시작점 설정
 workflow.set_entry_point("classify")
@@ -272,7 +329,13 @@ def route_intent(state: AgentState):
         return "history_handler"
     elif intent == "complaint":
         return "complaint_handler"
-    return "general_handler"
+    elif intent == "greeting":
+        return "greeting_handler"
+    elif intent == "menu_qa":
+        return "menu_qa_handler"
+    elif intent == "store_info":
+        return "store_info_handler"
+    return "greeting_handler"
 
 
 workflow.add_conditional_edges(
@@ -282,15 +345,19 @@ workflow.add_conditional_edges(
         "order_handler": "order_handler",
         "history_handler": "history_handler",
         "complaint_handler": "complaint_handler",
-        "general_handler": "general_handler",
+        "greeting_handler": "greeting_handler",
+        "menu_qa_handler": "menu_qa_handler",
+        "store_info_handler": "store_info_handler",
     },
 )
 
 # 종료 엣지 설정
-workflow.add_edge("general_handler", END)
 workflow.add_edge("order_handler", END)
 workflow.add_edge("complaint_handler", END)
 workflow.add_edge("history_handler", END)
+workflow.add_edge("greeting_handler", END)
+workflow.add_edge("menu_qa_handler", END)
+workflow.add_edge("store_info_handler", END)
 
 # 체크포인터(메모리) 설정
 memory = MemorySaver()
