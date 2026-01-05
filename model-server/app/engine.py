@@ -1,7 +1,5 @@
-import os
-
 import mlx.core as mx
-from mlx_lm import load, stream_generate, generate
+from mlx_lm import generate, load, stream_generate
 from mlx_lm.sample_utils import make_sampler
 
 mx.set_default_device(mx.gpu)
@@ -15,14 +13,15 @@ class LLMEngine:
         self.tokenizer = None
         print(f"🚀 Loading model: {MODEL_ID}...")
 
-        adapter_path = "adapters"
+        self.model, self.tokenizer = load(MODEL_ID)
+        # adapter_path = "adapters"
 
-        if os.path.exists(adapter_path):
-            print(f"✨ Found adapter at '{adapter_path}'. Loading with LoRA...")
-            self.model, self.tokenizer = load(MODEL_ID, adapter_path=adapter_path)
-        else:
-            print("⚠️ Adapter not found. Loading base model only.")
-            self.model, self.tokenizer = load(MODEL_ID)
+        # if os.path.exists(adapter_path):
+        #     print(f"✨ Found adapter at '{adapter_path}'. Loading with LoRA...")
+        #     self.model, self.tokenizer = load(MODEL_ID, adapter_path=adapter_path)
+        # else:
+        #     print("⚠️ Adapter not found. Loading base model only.")
+        #     self.model, self.tokenizer = load(MODEL_ID)
 
         print("✅ Model loaded successfully!")
 
@@ -79,10 +78,13 @@ class LLMEngine:
             self.tokenizer,
             prompt=prompt_formatted,
             max_tokens=max_tokens,
-            sampler=make_sampler(temp=temperature), # 분류 작업은 창의성이 필요 없으므로 temp=0.0 권장
-            verbose=False # 로그 지저분해지지 않게 끔
+            sampler=make_sampler(
+                temp=temperature
+            ),  # 분류 작업은 창의성이 필요 없으므로 temp=0.0 권장
+            verbose=False,  # 로그 지저분해지지 않게 끔
         )
-        
+
         return response
+
 
 engine = LLMEngine()
