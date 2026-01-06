@@ -1,9 +1,24 @@
+import os
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.agent import agent_app
 from app.engine import engine
+
+
+def validate_required_environment_variables():
+    required_vars = ["PINECONE_API_KEY", "PINECONE_INDEX_NAME"]
+    missing_vars = [var for var in required_vars if not os.getenv(var)]
+    if missing_vars:
+        raise RuntimeError(
+            f"Missing required environment variables: {', '.join(missing_vars)}. "
+            f"Please check your .env file."
+        )
+
+
+validate_required_environment_variables()
 
 app = FastAPI(title="Gemma Agent Server")
 
@@ -18,55 +33,61 @@ def chat_endpoint(req: ChatRequest):
     try:
         print(f"📩 User Query: {req.message} (Session: {req.session_id})")
 
-        # 1. LangGraph 설정 (Thread ID 지정)
-        # 이 ID가 같으면 이전 대화 기록(State)을 자동으로 불러옵니다.
         config = {"configurable": {"thread_id": req.session_id}}
 
-        # 2. 입력 데이터 구성
-        # operator.add 덕분에, 여기서 넣은 메시지는 기존 기록 뒤에 추가됩니다.
         input_state = {
             "messages": [{"role": "user", "content": req.message}],
             "current_intent": "general",
             "final_response": "",
         }
 
-        # 3. 에이전트 실행 (config 전달 필수!)
         result = agent_app.invoke(input_state, config=config)
         final_prompt = result["final_response"]
 
         dynamic_temperature = result.get("temperature", 0.7)
 
-        # (디버깅용) 현재까지 쌓인 메시지 개수 확인
         history_count = len(result["messages"])
         print(f"🧠 Memory Depth: {history_count} messages")
 
         async def response_generator():
             full_response = ""
 
-            # 엔진에서 스트림을 받아서 클라이언트에게 전달
-            stream = engine.generate_text_stream(
-                prompt=final_prompt, max_tokens=500, temperature=dynamic_temperature
-            )
+            try:
+                stream = engine.generate_text_stream(
+                    prompt=final_prompt,
+                    max_tokens=500,
+                    temperature=dynamic_temperature,
+                )
 
-            for token in stream:
-                full_response += token
-                yield token
+                for token in stream:
+                    full_response += token
+                    yield token
 
-            # 🟢 [핵심 수정] 스트리밍이 끝나면 완성된 답변을 메모리에 저장
-            print(f"💾 Saving AI Response to Memory: {len(full_response)} chars")
+                print(f"💾 Saving AI Response to Memory: {len(full_response)} chars")
 
-            # update_state를 사용하여 assistant 메시지 추가
-            # (이 코드는 스트리밍이 끝난 직후 서버 내부에서 실행됨)
-            agent_app.update_state(
-                config, {"messages": [{"role": "assistant", "content": full_response}]}
-            )
+                agent_app.update_state(
+                    config,
+                    {"messages": [{"role": "assistant", "content": full_response}]},
+                )
 
-        # 4. 스트리밍 응답
+            except Exception as stream_error:
+                error_msg = f"Error during text generation: {str(stream_error)}"
+                print(f"❌ {error_msg}")
+                yield f"\n\n[Error: {error_msg}]"
+
         return StreamingResponse(response_generator(), media_type="text/plain")
 
+    except KeyError as e:
+        print(f"❌ Missing key in agent state: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Agent configuration error: {str(e)}"
+        )
+    except RuntimeError as e:
+        print(f"❌ Runtime error: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"Model service error: {str(e)}")
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"❌ Unexpected error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 if __name__ == "__main__":
