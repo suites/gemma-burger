@@ -8,13 +8,57 @@ interface Message {
 }
 
 const App: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([
-    { text: "Hello! I'm Gemma, your burger concierge. What can I get for you today?", sender: 'ai' }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId] = useState(uuidv4());
   const chatWindowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchGreeting = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: "___INIT_GREETING___",
+            sessionId: sessionId,
+          }),
+        });
+
+        if (!response.ok) throw new Error('Server Error');
+        if (!response.body) throw new Error('No response body');
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let aiResponseText = '';
+
+        setIsLoading(false);
+        setMessages([{ text: '', sender: 'ai' }]);
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          aiResponseText += chunk;
+
+          setMessages(prev => {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1].text = aiResponseText;
+            return newMessages;
+          });
+        }
+      } catch (error) {
+        console.error(error);
+        setMessages([{ text: 'Rosy is busy right now. Please try again later! 🍔', sender: 'ai' }]);
+        setIsLoading(false);
+      }
+    };
+
+    fetchGreeting();
+  }, [sessionId]);
 
   useEffect(() => {
     if (chatWindowRef.current) {

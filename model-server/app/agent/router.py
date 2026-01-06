@@ -6,6 +6,10 @@ from app.engine import engine
 def classify_intent(state: AgentState):
     last_msg = state["messages"][-1]["content"]
 
+    if last_msg == "___INIT_GREETING___":
+        print(f"🧭 [Router] Initial Greeting Triggered")
+        return {"current_intent": Intent.GREETING.value}
+
     # YAML에서 라우터 프롬프트 가져오기
     prompt_template = PROMPTS["router"]["system"]
     prompt = prompt_template.format(user_message=last_msg)

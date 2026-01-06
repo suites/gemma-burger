@@ -39,10 +39,12 @@ def handle_history(state: AgentState):
 
 
 def handle_greeting(state: AgentState):
+    user_msg = state["messages"][-1]["content"]
+    if user_msg == "___INIT_GREETING___":
+        user_msg = "Hello! I just walked in."
+
     return {
-        "final_response": build_prompt(
-            "rosy", "Greet warmly. No info.", "", state["messages"][-1]["content"]
-        ),
+        "final_response": build_prompt("rosy", "Greet warmly. No info.", "", user_msg),
         "temperature": 0.7,
     }
 
