@@ -50,17 +50,19 @@ def handle_greeting(state: AgentState):
 # ... (handle_complaint, handle_menu_qa, handle_store_info 도 유사하게 작성)
 # 공간상 생략했지만, 기존 로직에서 build_prompt와 PROMPTS[...]만 교체하면 됩니다.
 # 나머지 함수들도 위 패턴대로 작성해 주세요.
-def handle_complaint(state):
-    """불만 접수 -> Gordon (규정 검색)"""
+def handle_complaint(state: AgentState):
     query = state["messages"][-1]["content"]
     print("🚨 [Agent] Complaint detected! Switching to Manager Gordon.")
 
-    # 규정(Policy/Info) 정보 검색
-    docs = rag_engine.search(query, filter={"type": "info"})
-    context = "\n".join(docs)
+    history = state["messages"]
 
-    # Gordon에게 맞는 Task 로드
-    task = PROMPTS["complaint"]["task"]
+    if len(history) < 4:
+        task = "Listen to the customer's complaint and ask clarifying questions (e.g., dine-in/take-out, specific item) before offering any solutions."
+        context = "Initial inquiry - focus on listening."
+    else:
+        docs = rag_engine.search(query, filter={"type": "info"})
+        context = "\n".join(docs)
+        task = PROMPTS["complaint"]["task"]
 
     prompt = build_prompt("gordon", task, context, query)
     return {"final_response": prompt, "temperature": 0.2}

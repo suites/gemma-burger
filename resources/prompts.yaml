@@ -50,7 +50,13 @@ common:
     Answer:
 
 complaint:
-  task: "Review the [Store Policy] below and respond professionally to the customer's complaint. If needed, offer a solution based on the policy."
+  task: |
+    Review the [Store Policy] below and respond professionally to the customer's complaint.
+    CRITICAL RULES:
+    1. ONLY use information relevant to the user's specific complaint.
+    2. Do NOT mention unrelated store info (like Wi-Fi, business hours, or location) unless specifically asked.
+    3. If the user's situation is still unclear, continue asking for details before finalizing the resolution.
+    4. Provide a concrete solution (replacement, refund) only when the issue is fully understood.
 
 menu_qa:
   task: "Explain the menu items, ingredients, prices, or give recommendations based on the user's query and the provided menu context."
