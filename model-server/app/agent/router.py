@@ -1,4 +1,4 @@
-from app.agent.state import AgentState
+from app.agent.state import AgentState, Intent
 from app.agent.utils import PROMPTS
 from app.engine import engine
 
@@ -11,24 +11,13 @@ def classify_intent(state: AgentState):
     prompt = prompt_template.format(user_message=last_msg)
 
     response = engine.generate_text(prompt, max_tokens=10, temperature=0.0)
-    intent = response.strip().upper()
+    intent_raw = response.strip().upper()
 
-    # 간단한 매핑
-    valid_intents = [
-        "ORDER",
-        "HISTORY",
-        "COMPLAINT",
-        "GREETING",
-        "MENU_QA",
-        "STORE_INFO",
-    ]
-
-    # 포함 여부 확인 (예: "ORDER NOW" -> "ORDER")
-    final_intent = "greeting"  # Default
-    for v in valid_intents:
-        if v in intent:
-            final_intent = v.lower()
+    final_intent = Intent.GREETING.value
+    for i in Intent:
+        if i.name in intent_raw:
+            final_intent = i.value
             break
 
-    print(f"🧭 [Router] '{last_msg}' -> {intent} -> {final_intent}")
+    print(f"🧭 [Router] '{last_msg}' -> {intent_raw} -> {final_intent}")
     return {"current_intent": final_intent}

@@ -1,24 +1,34 @@
-.PHONY: start start-dev stop clean install start-app-server start-model-server start-app-server-dev start-model-server-dev build-frontend build-backend
+.PHONY: start start-dev stop clean install start-app-server start-model-server start-app-server-dev start-frontend-dev start-model-server-dev build-frontend build-backend
 
 # 모든 서버를 개발 모드로 시작 (병렬 실행)
 start: build-frontend build-backend
 	@echo "🚀 Starting all servers..."
 	@make -j2 start-app-server start-model-server
 
-# 개발 모드로 시작
+# 개발 모드로 시작 (프론트엔드 + 백엔드 + AI 서버)
 start-dev:
 	@echo "🚀 Starting all servers in dev mode..."
-	@make -j2 start-app-server-dev start-model-server-dev
+	@make -j3 start-frontend-dev start-app-server-dev start-model-server-dev
 
 # App Server 시작 (프로덕션)
 start-app-server: build-frontend build-backend
 	@echo "📦 Starting App Server..."
 	@cd app-server/backend && pnpm start
 
-# App Server 개발 모드
+# App Server 개발 모드 (Backend + Frontend 동시 실행)
 start-app-server-dev:
 	@echo "📦 Starting App Server (dev mode)..."
+	@make -j2 start-frontend-dev start-backend-dev
+
+# Backend 개발 모드
+start-backend-dev:
+	@echo "🔧 Starting Backend (dev mode)..."
 	@cd app-server/backend && pnpm start:dev
+
+# Frontend 개발 모드
+start-frontend-dev:
+	@echo "🎨 Starting Frontend (dev mode)..."
+	@cd app-server/frontend && pnpm run dev
 
 # Model Server 시작
 start-model-server:

@@ -8,15 +8,16 @@ from app.agent.handlers import (
     handle_order,
     handle_store_info,
 )
-from app.agent.state import AgentState
+from app.agent.state import AgentState, Intent
 
 
 @pytest.fixture
 def sample_state() -> AgentState:
     return {
         "messages": [{"role": "user", "content": "Hello!"}],
-        "current_intent": "general",
+        "current_intent": Intent.GREETING.value,
         "final_response": "",
+        "temperature": 0.7,
     }
 
 

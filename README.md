@@ -26,18 +26,24 @@
 
 ```mermaid
 graph TD
-    Client[Web Client / HTML+JS] -->|HTTP POST| NestJS[App Server: NestJS]
-    NestJS -->|Proxy Request| Python[AI Server: FastAPI]
+    Client[Web Client / React SPA] -->|HTTP POST| Vite[Vite Dev Server :5173]
+    Vite -->|Proxy /chat| NestJS[App Server: NestJS :3000]
+    NestJS -->|SSE Proxy| Python[AI Server: FastAPI :8000]
 
     subgraph AI Brain
         Python -->|Retrieval| Pinecone[(Vector DB: Pinecone)]
         Pinecone -->|Context| Python
-        Python -->|Inference| MLX[Local LLM: MLX Engine]
+        Python -->|Streaming| MLX[Local LLM: MLX Engine]
     end
 
     subgraph MLOps
-        MLX -->|Logging| MLflow[MLflow Server]
+        MLX -->|Logging| MLflow[MLflow Server :5001]
         MLX -->|Upload| HF[Hugging Face Hub]
+    end
+    
+    subgraph Production
+        ProdClient[Production Client] -->|HTTP| NestJS
+        NestJS -.->|Serves Static| ReactBuild[React Build /dist]
     end
 ```
 
@@ -45,8 +51,9 @@ graph TD
 
 1.  **Application Server (NestJS)**
 
-    - **API Gateway:** 클라이언트 요청을 받아 Python 서버로 중계.
-    - **Frontend Hosting:** 채팅 UI (HTML/JS) 정적 서빙.
+    - **API Gateway:** 클라이언트 요청을 받아 Python 서버로 SSE 중계.
+    - **Frontend Hosting:** React SPA 정적 서빙 (프로덕션 모드).
+    - **Development Proxy:** Vite dev server가 `/chat` 요청을 NestJS로 프록시.
     - **Responsibility:** 인증, 로깅, 트래픽 제어 등 백엔드 본연의 업무 집중.
 
 2.  **AI Server (Python/FastAPI)**
@@ -75,6 +82,7 @@ graph TD
 | 구분             | 기술 (Technology)                    | 설명                               |
 | :--------------- | :----------------------------------- | :--------------------------------- |
 | **OS**           | macOS (Apple Silicon)                | Metal 가속 활용 (M1/M2/M3)         |
+| **Frontend**     | **React 19** + **TypeScript**, Vite 7 | SPA 채팅 UI, HMR 개발 환경        |
 | **Backend**      | **NestJS** (Node.js v20+)            | Main Application & Gateway         |
 | **AI Server**    | **FastAPI**, Uvicorn                 | AI Logic & Serving                 |
 | **Model Engine** | **MLX-LM**, PyTorch                  | Apple Silicon 최적화 추론 및 학습  |
@@ -89,16 +97,26 @@ graph TD
 
 ```bash
 gemma-burger/
-├── app-server/          # NestJS Application (Gateway)
-│   ├── src/
-│   │   ├── chat/        # 채팅 중계 로직
-│   │   │   ├── chat.controller.ts  # /chat 엔드포인트
-│   │   │   ├── chat.service.ts     # Python 서버 프록시
-│   │   │   └── chat.module.ts
-│   │   ├── app.module.ts
-│   │   └── main.ts      # 앱 진입점 (포트 3000)
-│   ├── public/          # Web UI (index.html)
-│   └── package.json     # pnpm 의존성 관리
+├── app-server/          # 프론트엔드 + 백엔드 모노레포
+│   ├── backend/         # NestJS Backend (API Gateway)
+│   │   ├── src/
+│   │   │   ├── chat/        # 채팅 중계 로직
+│   │   │   │   ├── chat.controller.ts  # /chat 엔드포인트
+│   │   │   │   ├── chat.service.ts     # Python 서버 SSE 프록시
+│   │   │   │   └── chat.module.ts
+│   │   │   ├── app.module.ts
+│   │   │   └── main.ts      # 앱 진입점 (포트 3000)
+│   │   ├── dist/            # 빌드 결과물
+│   │   ├── test/            # E2E 테스트
+│   │   └── package.json     # 백엔드 의존성 (pnpm)
+│   └── frontend/        # React Frontend (Vite)
+│       ├── src/
+│       │   ├── App.tsx      # 메인 채팅 컴포넌트
+│       │   ├── main.tsx     # React 진입점
+│       │   └── App.css      # 스타일
+│       ├── dist/            # 프로덕션 빌드 (NestJS가 서빙)
+│       ├── package.json     # 프론트엔드 의존성 (pnpm)
+│       └── vite.config.ts   # Vite 설정 (프록시 포함)
 ├── model-server/        # Python AI Application (Brain)
 │   ├── app/
 │   │   ├── main.py      # FastAPI Entrypoint (RAG + Inference)
@@ -255,20 +273,35 @@ poetry run python scripts/ingest.py  # 최초 1회
 poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-**터미널 2 - 앱 서버**
+**터미널 2 - NestJS 백엔드**
 ```bash
-cd app-server
+cd app-server/backend
 pnpm install
 pnpm run start:dev
 ```
 
+**터미널 3 - React 프론트엔드 (개발 모드)**
+```bash
+cd app-server/frontend
+pnpm install
+pnpm run dev
+```
+
 #### 6. 접속
 
-웹 브라우저에서 **`http://localhost:3000`** 접속 후 채팅 시작!
+**개발 모드 (권장)**:
+- 웹 브라우저에서 **`http://localhost:5173`** 접속 (Vite dev server)
+- HMR (Hot Module Replacement) 지원으로 실시간 코드 반영
+- Vite가 `/chat` 요청을 자동으로 NestJS로 프록시
+
+**프로덕션 모드**:
+- `make build-frontend && make build-backend` 실행 후
+- **`http://localhost:3000`** 접속 (NestJS가 빌드된 React 앱 서빙)
 
 **포트 정보**:
-- Frontend & API: `http://localhost:3000`
-- AI Server (FastAPI): `http://localhost:8000` (내부 통신용)
+- Frontend (Dev): `http://localhost:5173` (Vite)
+- Backend (API): `http://localhost:3000` (NestJS)
+- AI Server: `http://localhost:8000` (FastAPI, 내부 통신용)
 - MLflow UI: `http://localhost:5001`
 
 ---
@@ -333,6 +366,14 @@ pnpm run start:dev
 
   - Persona: 불만 접수 및 규정 안내를 담당하는 매니저 에이전트(Gordon) 추가.
   - Router Chain: 사용자 입력의 성격(주문/잡담 vs 불만/심각)을 분류하여 적절한 에이전트에게 요청을 분배.
+
+- [x] **Frontend UI 개선 (React 마이그레이션)**
+
+  - 구조 개편: `app-server/` 디렉토리를 `frontend/`와 `backend/`로 분리하여 모노레포 구조 구축.
+  - React 19 + TypeScript: Vite 7 기반 SPA로 채팅 UI 재구현.
+  - 개발 환경: Vite dev server (port 5173)에서 `/chat` 요청을 NestJS (port 3000)로 프록시.
+  - 프로덕션 환경: NestJS가 빌드된 React 앱을 `frontend/dist/`에서 정적 서빙.
+  - 스트리밍 유지: 기존 SSE 스트리밍 로직 그대로 유지하여 실시간 타이핑 효과 구현.
 
 - [ ] **Agentic Tool Use (Budget Planner)**
 

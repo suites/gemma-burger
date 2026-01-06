@@ -5,6 +5,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.agent import agent_app
+from app.agent.state import Intent
 from app.engine import engine
 
 
@@ -37,7 +38,7 @@ def chat_endpoint(req: ChatRequest):
 
         input_state = {
             "messages": [{"role": "user", "content": req.message}],
-            "current_intent": "general",
+            "current_intent": Intent.GREETING.value,
             "final_response": "",
         }
 

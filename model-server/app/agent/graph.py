@@ -11,16 +11,16 @@ from app.agent.handlers import (
     handle_store_info,
 )
 from app.agent.router import classify_intent
-from app.agent.state import AgentState
+from app.agent.state import AgentState, Intent
 
-# 🟢 설정 주도형 매핑: 의도(Key)와 핸들러(Value) 연결
+# 🟢 설정 주도형 매핑: 의도(Enum)와 핸들러(Value) 연결
 INTENT_MAP = {
-    "order": handle_order,
-    "history": handle_history,
-    "complaint": handle_complaint,
-    "greeting": handle_greeting,
-    "menu_qa": handle_menu_qa,
-    "store_info": handle_store_info,
+    Intent.ORDER.value: handle_order,
+    Intent.HISTORY.value: handle_history,
+    Intent.COMPLAINT.value: handle_complaint,
+    Intent.GREETING.value: handle_greeting,
+    Intent.MENU_QA.value: handle_menu_qa,
+    Intent.STORE_INFO.value: handle_store_info,
 }
 
 workflow = StateGraph(AgentState)
@@ -39,7 +39,11 @@ for key, func in INTENT_MAP.items():
 def route_logic(state: AgentState):
     intent = state["current_intent"]
     # 매핑에 있으면 해당 핸들러, 없으면 greeting
-    return f"{intent}_handler" if intent in INTENT_MAP else "greeting_handler"
+    return (
+        f"{intent}_handler"
+        if intent in INTENT_MAP
+        else f"{Intent.GREETING.value}_handler"
+    )
 
 
 # 4. 조건부 엣지 자동 등록
