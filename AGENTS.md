@@ -4,25 +4,55 @@ Welcome, Agent. This repository is a hybrid AI service combining **NestJS** (App
 
 ## 1. Project Overview & Architecture
 - **Hybrid Architecture**: 
-  - **NestJS (Gateway)**: Handles HTTP requests, static file hosting for the frontend, and acts as an SSE (Server-Sent Events) proxy.
+  - **NestJS (Gateway)**: Handles HTTP requests, static file hosting for the React frontend, and acts as an SSE (Server-Sent Events) proxy.
   - **Python (AI Brain)**: Manages local inference using Apple MLX, orchestrates complex agent logic with LangGraph, and performs RAG (Retrieval-Augmented Generation) with Pinecone.
 - **Local First**: Built specifically for Apple Silicon (Metal) acceleration. Avoid using external LLM APIs (OpenAI, etc.) for core inference.
 - **Microservices**: The two servers communicate via HTTP, but the NestJS server is the primary entry point for users (port 3000).
 
 ## 2. Global Commands (Root Makefile)
 The root directory contains a `makefile` to streamline development:
-- `make install`: Installs dependencies for both `app-server` (pnpm) and `model-server` (poetry).
+- `make install`: Installs dependencies for both `app-server/backend` (NestJS), `app-server/frontend` (React), and `model-server` (Python).
 - `make start-dev`: Starts both servers concurrently in watch/reload mode.
-- `make start-app-server-dev`: Starts only the NestJS server.
-- `make start-model-server-dev`: Starts only the FastAPI server.
+- `make start-app-server-dev`: Starts only the NestJS server (dev mode).
+- `make start-model-server-dev`: Starts only the FastAPI server (dev mode).
+- `make build-frontend`: Builds the React frontend (Vite).
+- `make build-backend`: Builds the NestJS backend.
 - `make clean`: Wipes build artifacts (`dist`), dependencies (`node_modules`), and poetry environments.
 
 ---
 
-## 3. App Server (TypeScript / NestJS)
-Located in `app-server/`. This server serves the static UI and proxies AI requests.
+## 3. App Server Structure (Frontend + Backend)
+Located in `app-server/`. This directory contains two independent projects:
+
+### 📂 Directory Structure
+```
+app-server/
+├── backend/              # NestJS Backend (API Gateway)
+│   ├── src/
+│   │   ├── chat/        # Chat proxy logic
+│   │   ├── app.module.ts
+│   │   └── main.ts
+│   ├── dist/            # Build output
+│   ├── test/            # E2E tests
+│   ├── package.json     # Backend dependencies (pnpm)
+│   ├── tsconfig.json
+│   └── nest-cli.json
+└── frontend/            # React Frontend (Vite + TypeScript)
+    ├── src/
+    │   ├── App.tsx      # Main chat component
+    │   └── main.tsx
+    ├── dist/            # Build output (served by NestJS)
+    ├── package.json     # Frontend dependencies (pnpm)
+    └── vite.config.ts
+```
+
+---
+
+## 4. Backend (TypeScript / NestJS)
+Located in `app-server/backend/`. This server serves the React app and proxies AI requests.
 
 ### 🛠 Commands
+**All commands must be run from `app-server/backend/` directory:**
 - **Install Dependencies**: `pnpm install`
 - **Production Build**: `pnpm run build`
 - **Linting & Formatting**: `pnpm run lint` (ESLint) and `pnpm run format` (Prettier).
@@ -41,18 +71,44 @@ Located in `app-server/`. This server serves the static UI and proxies AI reques
     - **Absolute**: Use `@nestjs/common`, `@nestjs/core`, etc. for framework packages.
 - **Type Safety**:
     - **Strictness**: `noImplicitAny: false` is set in `tsconfig.json`, but you should strive for explicit types. **Never use `any`** when a DTO or Interface can be defined.
+    - **Import Types**: Use `import type { Response } from 'express'` when importing types only (required for `isolatedModules: true`).
 - **Error Handling**:
     - Use NestJS built-in `HttpException` variants (e.g., `InternalServerErrorException`, `BadRequestException`).
     - Always wrap external service calls (especially to the Python server) in `try-catch` blocks and log the error before throwing.
 - **Patterns**:
     - **SSE 중계**: Since the AI server streams tokens, the NestJS service must return a `Readable` stream using `Axios` with `responseType: 'stream'`. Use `rxjs`'s `lastValueFrom` to handle the observable response.
     - **Separation of Concerns**: Controllers should only handle request/response mapping. All business logic must reside in `@Injectable()` services.
-    - **Global Prefix**: The API uses a `/api` prefix (check `main.ts`).
-    - **Static Serving**: The `public/` directory is served at the root URL.
+    - **Static Serving**: The `frontend/dist/` directory is served at the root URL by `ServeStaticModule`.
 
 ---
 
-## 4. Model Server (Python / FastAPI)
+## 5. Frontend (TypeScript / React)
+Located in `app-server/frontend/`. This is a modern React SPA built with Vite.
+
+### 🛠 Commands
+**All commands must be run from `app-server/frontend/` directory:**
+- **Install Dependencies**: `pnpm install`
+- **Development Server**: `pnpm run dev` (runs on port 5173 with HMR)
+- **Production Build**: `pnpm run build` (outputs to `dist/`)
+
+### 🎨 Code Style & Guidelines
+- **Framework**: React 19 with TypeScript
+- **Build Tool**: Vite 7
+- **Naming Conventions**:
+    - **Components**: `PascalCase.tsx` (e.g., `App.tsx`)
+    - **Hooks**: `camelCase` with `use` prefix (e.g., `useChat`)
+    - **Utilities**: `camelCase.ts`
+- **State Management**: React hooks (`useState`, `useEffect`, `useRef`)
+- **Styling**: CSS Modules or plain CSS (currently using `App.css`)
+- **API Communication**: Fetch API with streaming support for `/chat` endpoint
+
+### 🔗 Integration with Backend
+- **Development Mode**: Vite dev server proxies `/chat` requests to `http://localhost:3000` (NestJS)
+- **Production Mode**: NestJS serves the built React app from `app-server/frontend/dist/`
+
+---
+
+## 6. Model Server (Python / FastAPI)
 Located in `model-server/`. This server runs the LLM and RAG logic.
 
 ### 🛠 Commands
@@ -89,7 +145,7 @@ Located in `model-server/`. This server runs the LLM and RAG logic.
 
 ---
 
-## 5. MLOps, Data & Resources
+## 7. MLOps, Data & Resources
 - **MLflow**: Tracks fine-tuning experiments. Artifacts are stored locally by default.
 - **Pinecone**: Vector database for menu knowledge. Metadata filtering (e.g., `type: 'menu'`) is used in RAG.
 - **Resources**:
@@ -103,11 +159,12 @@ To refresh the vector database after modifying `menu.json`:
 3. Run `poetry run python scripts/ingest.py`.
 4. Verify by checking the Pinecone console or using the `menu_qa` handler.
 
-## 6. Agentic Workflow & Verification
+## 8. Agentic Workflow & Verification
 When you work in this repository, follow these steps to ensure quality:
 1. **Full-Stack Context**: Before modifying an endpoint, check both `ChatController` (NestJS) and `main.py` (FastAPI) to ensure the request/response contract is maintained.
 2. **Linting Verification**:
-    - After TypeScript changes: Run `pnpm run lint` in `app-server/`.
+    - After TypeScript changes (Backend): Run `pnpm run lint` in `app-server/backend/`.
+    - After TypeScript changes (Frontend): Run `pnpm run lint` in `app-server/frontend/` (if linter is configured).
     - After Python changes: Run `ruff check .` in `model-server/`.
 3. **LSP Check**: Run `lsp_diagnostics` on any modified files before finishing your task.
 4. **Testing Policy**:
@@ -116,28 +173,32 @@ When you work in this repository, follow these steps to ensure quality:
 5. **No Weights in Git**: Never commit `.safetensors` files or large model checkpoints. Use the `.gitignore` provided.
 6. **Parallel Execution**: Use `make start-dev` to run both servers. If one fails, check the logs for port conflicts (3000 or 8000).
 
-## 7. Development Tips for Agents
+## 9. Development Tips for Agents
 - **Local LLM Performance**: Since we use MLX on Metal, generation might be slower than cloud APIs. Do not reduce timeouts in the NestJS `HttpService` without reason.
 - **RAG Debugging**: If the model gives incorrect menu info, check `app/rag.py` and ensure the query is being embedded correctly.
 - **State Persistence**: LangGraph uses a `MemorySaver`. Ensure the `thread_id` (session_id) is passed consistently from the frontend to maintain conversation context.
 - **Prompt Engineering**: System prompts are located in `resources/prompts.yaml` or defined within the handlers. Modify these with care as they affect the fine-tuned persona.
+- **Frontend Development**: Use `pnpm run dev` in `app-server/frontend/` for hot-reload during development. The Vite dev server will proxy API requests to the NestJS backend.
 
-## 8. Troubleshooting for Agents
+## 10. Troubleshooting for Agents
 - **Pinecone Issues**: Ensure `PINECONE_API_KEY` and `PINECONE_INDEX_NAME` are correctly set in `model-server/.env`. If index creation fails, verify your Pinecone region settings.
 - **MLX Memory**: If inference fails with a "Device out of memory" error, check if another process is hogging the GPU (MPS). Closing Chrome or other high-GPU apps may help.
 - **SSE Failures**: Ensure the NestJS `HttpService` is configured with `responseType: 'stream'`, otherwise the entire response will buffer before sending, breaking the "typing" effect.
-- **CORS Errors**: If the frontend cannot reach the NestJS server, check the `main.ts` file in `app-server/` for `app.enableCors()` configuration.
+- **CORS Errors**: If the frontend cannot reach the NestJS server during development, check the Vite proxy configuration in `vite.config.ts`.
 - **Poetry Env**: If Python packages are missing, run `poetry install` inside `model-server/`. Avoid using `pip` directly to prevent dependency drift.
+- **Build Path Issues**: If NestJS cannot find static files, verify that `ServeStaticModule` points to `join(__dirname, '..', '..', 'frontend', 'dist')` in `app.module.ts`.
 
 
-## 9. Agent Contribution Guidelines
+## 11. Agent Contribution Guidelines
 - **Commit Message Style**: Use imperative mood (e.g., "Add SSE handling", "Fix RAG metadata filter").
 - **Documentation**: If adding a new agent handler, update the "LangGraph Component Breakdown" in this file.
 - **Dependency Management**: 
-  - For `app-server`: Use `pnpm add`.
+  - For `app-server/backend`: Use `pnpm add`.
+  - For `app-server/frontend`: Use `pnpm add`.
   - For `model-server`: Use `poetry add`.
 - **Secret Handling**: Never commit `.env` files. Use the `.env.example` as a template for new environment variables.
 - **Model Updates**: When updating the LLM engine, ensure the `MODEL_ID` in `app/engine.py` matches the fine-tuned adapter's base model.
 
 ---
-*Generated by Sisyphus Agent - 2026-01-06*
+*Updated by Sisyphus Agent - 2026-01-06*
+*Reflects React migration and monorepo structure (frontend/backend separation)*

@@ -11,7 +11,7 @@ import { ConfigModule } from '@nestjs/config';
       envFilePath: '.env',
     }),
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'public'), // public 폴더를 루트로 지정
+      rootPath: join(__dirname, '..', 'frontend', 'dist'), // React 빌드 결과물을 서빙
     }),
     ChatModule,
   ],
