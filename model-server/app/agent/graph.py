@@ -5,11 +5,13 @@ from langgraph.graph import END, StateGraph
 
 # handlers에서 모든 핸들러 함수 임포트
 from app.agent.handlers import (
+    handle_cancel,
     handle_complaint,
     handle_greeting,
     handle_history,
     handle_menu_qa,
     handle_order,
+    handle_remove,
     handle_store_info,
 )
 from app.agent.router import classify_intent
@@ -26,6 +28,8 @@ INTENT_MAP = {
     Intent.GREETING.value: handle_greeting,
     Intent.MENU_QA.value: handle_menu_qa,
     Intent.STORE_INFO.value: handle_store_info,
+    Intent.CANCEL.value: handle_cancel,
+    Intent.REMOVE.value: handle_remove,
 }
 
 workflow = StateGraph(AgentState)
@@ -79,7 +83,7 @@ for key, func in INTENT_MAP.items():
 # 3. 라우팅 로직
 def route_logic(state: AgentState):
     intent = state["current_intent"]
-    if intent == Intent.ORDER.value:
+    if intent in [Intent.ORDER.value, Intent.REMOVE.value]:
         return "extract_cart"
 
     return (

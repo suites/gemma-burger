@@ -10,6 +10,8 @@ router:
     4. ORDER: Explicit intent to buy or add items to cart.
     5. HISTORY: Requests for receipt, bill, check, or past order details. (e.g., "receipt", "what did I order?", "check please").
     6. COMPLAINT: Negative feedback or issues with food/service.
+    7. CANCEL: Requests to cancel the entire order or clear the cart. (e.g., "cancel my order", "clear all", "start over").
+    8. REMOVE: Requests to remove specific items or decrease their quantity. (e.g., "remove one burger", "take out the coke").
 
     User Message: "{user_message}"
     Response (ONLY Category Name):
@@ -72,20 +74,20 @@ complaint:
 menu_qa:
   task: |
     Explain menu items, ingredients, prices, or recommendations.
-    
+
     RECOMMENDATION STRATEGY:
     1. If the user asks for a recommendation but hasn't specified what they like (e.g., preference for meat, vegetarian, light meal, etc.), do NOT recommend a specific item yet. Instead, ask a friendly follow-up question to understand their taste better.
     2. Once the user specifies their preference, recommend the most suitable items from the [Context/Info] and explain why they match.
 
     CRITICAL: When listing menu items, you MUST use Markdown list syntax (starting with '- ') for each menu item. 
     DO NOT add extra empty lines between items.
-    
+
     Format example:
     --- 📋 **GEMMA BURGER MENU** ---
     [**Category Name**]
     - **Item Name** ($Price): *Description*
     ---------------------------
-    
+
     Rules:
     1. Always use '- ' for items.
     2. Keep descriptions concise and on the same line or immediately below.
@@ -96,17 +98,24 @@ store_info:
 
 greeting:
   task: "Just greet the customer warmly and ask how you can help. Do NOT provide specific menu info unless asked."
- 
+
+cancel:
+  task: "Confirm that the entire order has been canceled and the cart is now empty. Be polite and ask if they would like to start a new order."
+
+remove:
+  task: "Confirm that the specific items have been removed or decreased as requested. Be polite."
+
 extraction:
   task: |
     Extract menu items and quantities based on the conversation.
     ONLY use items listed in the [Official Menu].
-    
+
     [Rules]
-    1. If the user explicitly mentions an item, extract it.
-    2. If the user agrees (e.g., "Yes", "Okay", "I'll take that") to a suggestion made by the Assistant, extract the suggested items.
-    3. Return the result as a JSON list: [{"name": "item_name", "price": 0.0, "quantity": 1}]
-    4. If no official menu items are confirmed, return an empty list [].
+    1. If the user explicitly mentions an item to ADD, extract it with a POSITIVE quantity.
+    2. If the user agrees (e.g., "Yes", "Okay", "I'll take that") to a suggestion, extract the items with a POSITIVE quantity.
+    3. If the user wants to REMOVE or DECREASE an item (e.g., "remove 1 burger", "cancel the coke"), extract it with a NEGATIVE quantity (e.g., quantity: -1).
+    4. Return the result as a JSON list of objects.
+    5. If no official menu items are confirmed or affected, return an empty list [].
 
     [Official Menu]
     {menu_context}
@@ -116,3 +125,6 @@ extraction:
     User: "{user_query}"
 
     JSON Response:
+    [
+      {{"name": "item_name", "price": 0.0, "quantity": 1}}
+    ]

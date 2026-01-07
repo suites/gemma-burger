@@ -102,3 +102,26 @@ def handle_store_info(state):
 
     # 정보 전달은 정확해야 하므로 온도를 낮춤
     return {"final_response": prompt, "temperature": 0.2}
+
+
+def handle_cancel(state: AgentState):
+    query = state["messages"][-1]["content"]
+    task = PROMPTS["cancel"]["task"]
+    prompt = build_prompt("rosy", task, "", query)
+
+    return {
+        "cart": [{"command": "RESET"}],
+        "final_response": prompt,
+        "temperature": 0.0,
+    }
+
+
+def handle_remove(state: AgentState):
+    query = state["messages"][-1]["content"]
+    task = PROMPTS["remove"]["task"]
+    prompt = build_prompt("rosy", task, "", query)
+
+    return {
+        "final_response": prompt,
+        "temperature": 0.0,
+    }
