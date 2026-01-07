@@ -1,3 +1,5 @@
+import json
+
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 
@@ -12,6 +14,9 @@ from app.agent.handlers import (
 )
 from app.agent.router import classify_intent
 from app.agent.state import AgentState, Intent
+from app.agent.utils import PROMPTS
+from app.engine import engine
+from app.rag import rag_engine
 
 # 🟢 설정 주도형 매핑: 의도(Enum)와 핸들러(Value) 연결
 INTENT_MAP = {
@@ -31,26 +36,21 @@ workflow.set_entry_point("classify")
 
 
 def extract_cart_update(state: AgentState):
-    query = state["messages"][-1]["content"]
-    import json
+    messages = state["messages"]
+    query = messages[-1]["content"]
 
-    from app.engine import engine
-    from app.rag import rag_engine
+    prev_ai_msg = ""
+    if len(messages) >= 2:
+        prev_ai_msg = messages[-2]["content"]
 
-    docs = rag_engine.search(query, filter={"type": "menu"}, k=10)
+    search_query = f"{prev_ai_msg} {query}" if prev_ai_msg else query
+    docs = rag_engine.search(search_query, filter={"type": "menu"}, k=10)
     menu_context = "\n".join(docs)
 
-    extraction_prompt = f"""
-    Extract menu items and quantities from the user message.
-    ONLY use items listed in the [Official Menu].
-    Return the result as a JSON list of objects: [{{"name": "item_name", "price": 0.0, "quantity": 1}}]
-    If no official menu items are found, return an empty list [].
-
-    [Official Menu]
-    {menu_context}
-
-    User Message: "{query}"
-    JSON Response:"""
+    prompt_template = PROMPTS["extraction"]["task"]
+    extraction_prompt = prompt_template.format(
+        menu_context=menu_context, prev_ai_msg=prev_ai_msg, user_query=query
+    )
 
     response = engine.generate_text(extraction_prompt, max_tokens=100, temperature=0.0)
 
@@ -93,9 +93,10 @@ workflow.add_edge("extract_cart", f"{Intent.ORDER.value}_handler")
 
 
 # 4. 조건부 엣지 자동 등록
-workflow.add_conditional_edges(
-    "classify", route_logic, {f"{k}_handler": f"{k}_handler" for k in INTENT_MAP.keys()}
-)
+path_map: dict = {f"{k}_handler": f"{k}_handler" for k in INTENT_MAP.keys()}
+path_map["extract_cart"] = "extract_cart"
+
+workflow.add_conditional_edges("classify", route_logic, path_map)
 
 memory = MemorySaver()
 agent_app = workflow.compile(checkpointer=memory)

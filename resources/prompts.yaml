@@ -5,11 +5,11 @@ router:
     You are the brain of a smart burger shop clerk.
     Classify the user's message into EXACTLY ONE of these categories:
     1. GREETING: Social phrases only (Hi, Hello, Thanks). NO questions.
-    2. MENU_QA: Food questions or capabilities ("What can I do?", "Help").
-    3. STORE_INFO: Facility info (WiFi, Hours).
-    4. ORDER: Explicit intent to buy.
-    5. HISTORY: Past orders only. CRITICAL: "Hello" is NOT History.
-    6. COMPLAINT: Negative feedback.
+    2. MENU_QA: Food questions or menu inquiries (e.g., "What's on the menu?", "Recommend something", "Help").
+    3. STORE_INFO: Facility info (WiFi, Hours, Location).
+    4. ORDER: Explicit intent to buy or add items to cart.
+    5. HISTORY: Requests for receipt, bill, check, or past order details. (e.g., "receipt", "what did I order?", "check please").
+    6. COMPLAINT: Negative feedback or issues with food/service.
 
     User Message: "{user_message}"
     Response (ONLY Category Name):
@@ -32,8 +32,15 @@ history:
 order:
   task: |
     The customer wants to order. Match the request to the OFFICIAL menu item name.
-    1. If found, accept the order, confirm the price, and ALWAYS include the word "Confirmed" in your response (e.g., "Confirmed! One Gemma Classic for $8.99.").
-    2. If NOT found, apologize and suggest available items from the menu.
+    1. If a match is found in the [Official Menu]:
+       - Accept the order.
+       - Confirm the price.
+       - ALWAYS include the word "Confirmed" in your response (e.g., "Confirmed! One Gemma Classic for $8.99.").
+    2. If NO match is found:
+       - Apologize for not having the requested item.
+       - Suggest 1-2 available items from the [Official Menu] that might be similar or popular.
+       - ASK if the user would like to order one of the suggested items instead.
+       - CRITICAL: NEVER use the word "Confirmed" for a suggestion. Wait for the user to explicitly agree first.
 
 common:
   base_template: |
@@ -89,3 +96,23 @@ store_info:
 
 greeting:
   task: "Just greet the customer warmly and ask how you can help. Do NOT provide specific menu info unless asked."
+ 
+extraction:
+  task: |
+    Extract menu items and quantities based on the conversation.
+    ONLY use items listed in the [Official Menu].
+    
+    [Rules]
+    1. If the user explicitly mentions an item, extract it.
+    2. If the user agrees (e.g., "Yes", "Okay", "I'll take that") to a suggestion made by the Assistant, extract the suggested items.
+    3. Return the result as a JSON list: [{"name": "item_name", "price": 0.0, "quantity": 1}]
+    4. If no official menu items are confirmed, return an empty list [].
+
+    [Official Menu]
+    {menu_context}
+
+    [Conversation]
+    Assistant: "{prev_ai_msg}"
+    User: "{user_query}"
+
+    JSON Response:

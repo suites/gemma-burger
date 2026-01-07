@@ -1,4 +1,5 @@
 import os
+import traceback
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
@@ -75,20 +76,24 @@ def chat_endpoint(req: ChatRequest):
             except Exception as stream_error:
                 error_msg = f"Error during text generation: {str(stream_error)}"
                 print(f"❌ {error_msg}")
+                traceback.print_exc()
                 yield f"\n\n[Error: {error_msg}]"
 
         return StreamingResponse(response_generator(), media_type="text/plain")
 
     except KeyError as e:
         print(f"❌ Missing key in agent state: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(
             status_code=500, detail=f"Agent configuration error: {str(e)}"
         )
     except RuntimeError as e:
         print(f"❌ Runtime error: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(status_code=503, detail=f"Model service error: {str(e)}")
     except Exception as e:
         print(f"❌ Unexpected error: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
