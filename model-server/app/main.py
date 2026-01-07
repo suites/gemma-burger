@@ -38,6 +38,7 @@ def chat_endpoint(req: ChatRequest):
 
         input_state = {
             "messages": [{"role": "user", "content": req.message}],
+            "cart": [],
             "current_intent": Intent.GREETING.value,
             "final_response": "",
         }

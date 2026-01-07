@@ -14,6 +14,7 @@ class Intent(str, Enum):
 
 class AgentState(TypedDict):
     messages: Annotated[List[dict], operator.add]
+    cart: Annotated[List[dict], operator.add]
     current_intent: str
     final_response: str
     temperature: float | None

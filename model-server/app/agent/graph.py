@@ -29,6 +29,47 @@ workflow = StateGraph(AgentState)
 workflow.add_node("classify", classify_intent)
 workflow.set_entry_point("classify")
 
+
+def extract_cart_update(state: AgentState):
+    query = state["messages"][-1]["content"]
+    import json
+
+    from app.engine import engine
+    from app.rag import rag_engine
+
+    docs = rag_engine.search(query, filter={"type": "menu"}, k=10)
+    menu_context = "\n".join(docs)
+
+    extraction_prompt = f"""
+    Extract menu items and quantities from the user message.
+    ONLY use items listed in the [Official Menu].
+    Return the result as a JSON list of objects: [{{"name": "item_name", "price": 0.0, "quantity": 1}}]
+    If no official menu items are found, return an empty list [].
+
+    [Official Menu]
+    {menu_context}
+
+    User Message: "{query}"
+    JSON Response:"""
+
+    response = engine.generate_text(extraction_prompt, max_tokens=100, temperature=0.0)
+
+    try:
+        start = response.find("[")
+        end = response.rfind("]") + 1
+        if start != -1 and end != -1:
+            new_items = json.loads(response[start:end])
+            if isinstance(new_items, list):
+                return {"cart": new_items}
+    except Exception as e:
+        print(f"⚠️ Cart Extraction Failed: {e}")
+
+    return {"cart": []}
+
+
+workflow.add_node("extract_cart", extract_cart_update)
+
+
 # 2. Handler 노드 자동 등록 (반복문 사용)
 for key, func in INTENT_MAP.items():
     workflow.add_node(f"{key}_handler", func)
@@ -38,12 +79,17 @@ for key, func in INTENT_MAP.items():
 # 3. 라우팅 로직
 def route_logic(state: AgentState):
     intent = state["current_intent"]
-    # 매핑에 있으면 해당 핸들러, 없으면 greeting
+    if intent == Intent.ORDER.value:
+        return "extract_cart"
+
     return (
         f"{intent}_handler"
         if intent in INTENT_MAP
         else f"{Intent.GREETING.value}_handler"
     )
+
+
+workflow.add_edge("extract_cart", f"{Intent.ORDER.value}_handler")
 
 
 # 4. 조건부 엣지 자동 등록

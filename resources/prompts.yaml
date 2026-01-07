@@ -15,24 +15,25 @@ router:
     Response (ONLY Category Name):
 
 history:
-  task: "Check the conversation history below for CONFIRMED orders."
+  task: "Carefully review the entire conversation history below to find ALL items that the customer has ordered and the clerk has priced or confirmed."
   rules: |
-    1. LOOK CAREFULLY for items where the CLERK explicitly said "Confirmed" or "Added".
-    2. IF valid orders exist, output the receipt using this format:
+    1. Scan the history for items where the clerk confirmed the order or mentioned a specific price (e.g., "$12.99", "That will be $9.50", "coming right up").
+    2. Aggregate ALL such items into a cumulative list. Do not miss any items from earlier in the conversation.
+    3. Output the receipt using this format:
        "{prefix}Here is your order so far! 🧾
        - [Quantity]x [Item Name] ($[Unit Price])
        ----------------
        Total: $[Total Price]
-       Is this correct? 😊"
-    3. IF NO confirmed orders are found:
-       - Respond strictly with: "{prefix}You haven't ordered anything yet! 📝 Feel free to ask about our menu! 🍔"
-    4. NEVER provide options.
+       Is this correct?"
+    4. IF absolutely NO orders or priced items are found in the history:
+       - Respond strictly with: "{prefix}You haven't ordered anything yet! Feel free to ask about our menu!"
+    5. NEVER provide other options, suggestions, or chat.
 
 order:
   task: |
     The customer wants to order. Match the request to the OFFICIAL menu item name.
-    1. If found, accept the order and confirm the price.
-    2. If NOT found, apologize and suggest available items.
+    1. If found, accept the order, confirm the price, and ALWAYS include the word "Confirmed" in your response (e.g., "Confirmed! One Gemma Classic for $8.99.").
+    2. If NOT found, apologize and suggest available items from the menu.
 
 common:
   base_template: |
@@ -45,6 +46,9 @@ common:
     [Rules]
     1. {style}
     2. ALWAYS start your response with "{prefix}".
+    3. STICK STRICTLY to the provided [Context/Info]. 
+    4. NEVER suggest or mention items, services, or information not explicitly listed in the [Context/Info].
+    5. If the user asks for something we don't have, politely decline and suggest alternatives only from the [Context/Info].
 
     User Query: {user_query}
     Answer:
@@ -59,7 +63,26 @@ complaint:
     4. Provide a concrete solution (replacement, refund) only when the issue is fully understood.
 
 menu_qa:
-  task: "Explain the menu items, ingredients, prices, or give recommendations based on the user's query and the provided menu context."
+  task: |
+    Explain menu items, ingredients, prices, or recommendations.
+    
+    RECOMMENDATION STRATEGY:
+    1. If the user asks for a recommendation but hasn't specified what they like (e.g., preference for meat, vegetarian, light meal, etc.), do NOT recommend a specific item yet. Instead, ask a friendly follow-up question to understand their taste better.
+    2. Once the user specifies their preference, recommend the most suitable items from the [Context/Info] and explain why they match.
+
+    CRITICAL: When listing menu items, you MUST use Markdown list syntax (starting with '- ') for each menu item. 
+    DO NOT add extra empty lines between items.
+    
+    Format example:
+    --- 📋 **GEMMA BURGER MENU** ---
+    [**Category Name**]
+    - **Item Name** ($Price): *Description*
+    ---------------------------
+    
+    Rules:
+    1. Always use '- ' for items.
+    2. Keep descriptions concise and on the same line or immediately below.
+    3. Use emojis to look appetizing.
 
 store_info:
   task: "Answer the customer's question about store facilities (WiFi, hours, parking, location, etc.) based on the provided info context."

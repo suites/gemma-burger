@@ -5,37 +5,42 @@ from app.rag import rag_engine
 
 def handle_order(state: AgentState):
     query = state["messages"][-1]["content"]
-    docs = rag_engine.search(query, filter={"type": "menu"})
+    docs = rag_engine.search(query, filter={"type": "menu"}, k=10)
 
-    # YAML에서 Task 지시문 가져오기
     task = PROMPTS["order"]["task"]
-
     prompt = build_prompt("rosy", task, "\n".join(docs), query)
-    return {"final_response": prompt, "temperature": 0.7}
+
+    return {"final_response": prompt, "temperature": 0.1}
 
 
 def handle_history(state: AgentState):
-    # 대화 기록 포맷팅
-    history_lines = [f"{m['role'].upper()}: {m['content']}" for m in state["messages"]]
-    conversation_text = "\n".join(history_lines)
-
+    cart = state.get("cart", [])
     p = PERSONAS["rosy"]
-    config = PROMPTS["history"]  # YAML 설정
+    prefix = p["prefix"]
 
-    # 프롬프트 조립 (YAML 내 변수 치환)
-    system_prompt = f"""
-    You are {p["name"]}, {p["description"]}.
-    Task: {config["task"]}
-    
-    [Conversation]
-    {conversation_text}
-    
-    [Rules]
-    {config["rules"].format(prefix=p["prefix"])}
-    
-    Answer:"""
+    if not cart:
+        return {
+            "final_response": f"{prefix}You haven't ordered anything yet! Feel free to ask about our menu!",
+            "temperature": 0.0,
+        }
 
-    return {"final_response": system_prompt, "temperature": 0.0}
+    receipt_lines = []
+    total_price = 0.0
+    for item in cart:
+        name = item.get("name", "Unknown Item")
+        price = item.get("price", 0.0)
+        qty = item.get("quantity", 1)
+        receipt_lines.append(f"- {qty}x {name} (${price:.2f})")
+        total_price += price * qty
+
+    receipt_text = "\n".join(receipt_lines)
+    final_response = f"""{prefix}Here is your order so far! 🧾
+{receipt_text}
+----------------
+Total: ${total_price:.2f}
+Is this correct?"""
+
+    return {"final_response": final_response, "temperature": 0.0}
 
 
 def handle_greeting(state: AgentState):
@@ -62,7 +67,7 @@ def handle_complaint(state: AgentState):
         task = "Listen to the customer's complaint and ask clarifying questions (e.g., dine-in/take-out, specific item) before offering any solutions."
         context = "Initial inquiry - focus on listening."
     else:
-        docs = rag_engine.search(query, filter={"type": "info"})
+        docs = rag_engine.search(query, filter={"type": "info"}, k=5)
         context = "\n".join(docs)
         task = PROMPTS["complaint"]["task"]
 
@@ -74,22 +79,21 @@ def handle_menu_qa(state):
     """메뉴 질문/추천 -> Rosy (메뉴판 검색)"""
     query = state["messages"][-1]["content"]
 
-    # 메뉴 정보만 검색
-    docs = rag_engine.search(query, filter={"type": "menu"})
+    docs = rag_engine.search(query, filter={"type": "menu"}, k=10)
     context = "\n".join(docs)
 
     task = PROMPTS["menu_qa"]["task"]
 
     prompt = build_prompt("rosy", task, context, query)
-    return {"final_response": prompt, "temperature": 0.5}
+
+    return {"final_response": prompt, "temperature": 0.2}
 
 
 def handle_store_info(state):
     """매장 시설 질문 -> Rosy (매장 정보 검색)"""
     query = state["messages"][-1]["content"]
 
-    # 매장 정보(WiFi, 시간 등)만 검색
-    docs = rag_engine.search(query, filter={"type": "info"})
+    docs = rag_engine.search(query, filter={"type": "info"}, k=5)
     context = "\n".join(docs)
 
     task = PROMPTS["store_info"]["task"]
